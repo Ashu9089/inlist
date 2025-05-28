@@ -273,7 +273,8 @@
   const empId = matchedUser.emp_id;
 
   if (loginType === "user") {
-    window.location.href = `page1.html?emp_id=${empId}`;
+    window.location.href = `<a href="page1.html">page1</a>
+?emp_id=${empId}`;
   } else if (loginType === "admin") {
     window.location.href = `admin.html?emp_id=${empId}`;
   } else if (loginType === "developer") {
