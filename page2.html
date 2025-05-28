@@ -243,11 +243,13 @@
     <div class="chart-container">
       <div class="stat-title">Quick Actions</div>
       <div class="stats-grid">
-        <button class="stat-card">📅 Roster</button>
+        <button class="stat-card" id="roster-btn">📅 Roster</button>
         <button class="stat-card" id="add-staff-btn">➕ Add Staff</button>
         
-        <button class="stat-card">📋 Requests</button>
-        <button class="stat-card">📊 Reports</button>
+        <button class="stat-card" id="request-btn">📋 Requests</button>
+        <button class="stat-card" id="reports-btn">📊 Reports</button>
+ <button class="stat-card" id="time-btn">⏰shift Time Set</button>
+ <button class="stat-card" id="location-btn">📍 Location</button>
 
 
       </div>
@@ -270,6 +272,49 @@
   const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
   document.addEventListener("DOMContentLoaded", () => {
+
+
+   const addStaffBtn = document.getElementById("add-staff-btn");
+
+ 
+    if (addStaffBtn) {
+      addStaffBtn.addEventListener("click", function () {
+        window.location.href = "t.html";
+      // Yahan aap modal show ya kuch aur kar sakte ho
+
+
+    });
+  }
+
+const rosterBtn = document.getElementById("roster-btn");
+    if (rosterBtn) {
+      rosterBtn.addEventListener("click", function () {
+        window.location.href = "h.html"; // opens h.html
+      });
+    }
+
+const reportsbtn = document.getElementById("reports-btn");
+    if (reportsbtn) {
+      reportsbtn.addEventListener("click", function () {
+        window.location.href = "h.html"; // opens f.html
+      });
+    }
+const timebtn = document.getElementById("time-btn");
+    if (timebtn) {
+      timebtn.addEventListener("click", function () {
+        window.location.href = "h.html"; // opens v.html
+      });
+    }
+
+const locationbtn = document.getElementById("location-btn");
+    if (locationbtn) {
+      locationbtn.addEventListener("click", function () {
+        window.location.href = "h.html"; // opens k.html
+      });
+    }
+
+
+    
     const tabs = document.querySelectorAll('.tab');
     tabs.forEach(tab => {
       tab.addEventListener('click', () => {
