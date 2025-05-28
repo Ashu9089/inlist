@@ -508,7 +508,7 @@ const supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
 document.addEventListener('click', function(e) {
     if (e.target.closest('.view-btn')) {
         const empId = e.target.closest('.view-btn').getAttribute('data-emp-id');
-        window.open(`adminpro.html?emp_id=${empId}`, '_blank');
+        window.open(`page16.html?emp_id=${empId}`, '_blank');
         e.stopPropagation();
     }
 });
@@ -549,7 +549,7 @@ document.addEventListener('DOMContentLoaded', () => {
     document.addEventListener('click', function(e) {
         if (e.target.closest('.view-btn')) {
             const empId = e.target.closest('.view-btn').getAttribute('data-emp-id');
-            window.open(`th.html?emp_id=${empId}`, '_blank');
+            window.open(`page16.html?emp_id=${empId}`, '_blank');
             e.stopPropagation();
         }
     });
