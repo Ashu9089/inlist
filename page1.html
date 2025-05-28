@@ -1,0 +1,885 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Attendance - Loading...</title>
+  <link rel="stylesheet" href="styleu.css" />
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+  /* Existing styles */
+  .success-message {
+    display: none;
+    color: green;
+    margin-top: 10px;
+    text-align: center;
+  }
+
+  .error-message {
+    display: none;
+    color: red;
+    margin-top: 10px;
+    text-align: center;
+  }
+
+  #locationStatus {
+    font-size: 0.9em;
+    color: #666;
+    text-align: center;
+    margin-top: 10px;
+  }
+
+  .btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  /* New profile picture styles */
+  .profile-container {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background-color: #f0f0f0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    cursor: pointer;
+    border: 2px solid #ddd;
+  }
+
+  .profile-image {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: none;
+  }
+
+  .profile-fallback {
+    font-size: 16px;
+    font-weight: bold;
+    color: #555;
+  }
+
+  .top-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 15px;
+    background-color: #007bff; /* Blue color */
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+  }
+
+  #empIdDisplay {
+    font-size: 16px;
+  }
+
+  #companyName {
+    font-size: 18px;
+    font-weight: bold;
+  }
+
+  /* 🔴 Device Verify Button (Live Style) */
+  #deviceVerifyBtn {
+    padding: 10px 20px;
+    font-size: 16px;
+    font-weight: bold;
+    border: none;
+    border-radius: 8px;
+    background-color: #e91e63; /* Pinkish Red */
+    color: white;
+    box-shadow: 0 0 15px rgba(233, 30, 99, 0.6);
+    cursor: pointer;
+    animation: blinkLive 1.2s infinite;
+    transition: all 0.3s ease;
+  }
+
+  #deviceVerifyBtn:hover {
+    background-color: #c2185b;
+    box-shadow: 0 0 20px rgba(233, 30, 99, 0.8);
+  }
+
+  @keyframes blinkLive {
+    50% {
+      opacity: 0.5;
+    }
+  }
+
+  .fade-out {
+    opacity: 0;
+    transition: opacity 0.5s ease;
+    pointer-events: none;
+  }
+</style>
+
+</head>
+<body>
+   <!-- Top Bar -->
+  <header class="top-bar">
+    <div>
+      <span id="empIdDisplay">EMP ID: Loading...</span>
+      <div id="companyName">Company Name</div>
+    </div>
+    <div class="profile-container" id="profileContainer" onclick="navigateToProfile()">
+      <img id="profileImage" class="profile-image" src="" alt="Profile">
+      <div class="profile-fallback" id="profileFallback">JD</div>
+    </div>
+  </header>
+
+  <!-- Main Content -->
+  <main class="container">
+    <div class="card">
+      <p class="date" id="current-date"></p>
+      <p class="shift" id="emp-shift">Shift: Loading...</p>
+      <h1 class="time" id="current-time">--:--:--</h1>
+      <div class="punch-buttons">
+        <button class="btn punch-in" id="punchInBtn" onclick="handlePunchIn()">⏱️ Punch In</button>
+        <button class="btn punch-out" id="punchOutBtn" onclick="handlePunchOut()">🔚 Punch Out</button>
+      </div>
+      <div id="successMessage" class="success-message"></div>
+      <div id="errorMessage" class="error-message"></div>
+      <p id="locationStatus">Checking location permissions...</p>
+    </div>
+
+    <div class="buttons">
+<button id="deviceVerifyBtn" onclick="verifyDevice()">📱 Device Verify</button>
+
+
+      <button class="btn gray" onclick="goToShiftCalendar()">📅 Shift Calendar</button>
+      <button class="btn yellow" onclick="gotoOT()">🕒 Overtime Request</button>
+      <button class="btn red" onclick="gotoLeave()">📝 Leave Request</button>
+      <button class="btn green" onclick="gotoexchangeduty()">🔄 Duty Exchange</button>
+    </div>
+  </main>
+
+  <!-- Footer -->
+  <footer class="bottom-nav">
+    <div class="nav-item" onclick="navigateToHome()">🏠<br>Home</div>
+    <div class="nav-item" onclick="navigateToHelp()">📩<br>Help</div>
+    <div class="nav-item" onclick="navigateToNotifications()">🔔<br>Notifications</div>
+  </footer>
+
+  <script>
+    // Initialize Supabase Client
+    const supabaseUrl = "https://nqbrepbtcacdvatfcqrz.supabase.co";
+    const supabaseKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5xYnJlcGJ0Y2FjZHZhdGZjcXJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDU5MjgyOTIsImV4cCI6MjA2MTUwNDI5Mn0.2-IdK9Jh3Can-KT2rVUm8SMUt-7BL9OL58unLBtM9AM";
+
+    const supabaseClient = supabase.createClient(supabaseUrl, supabaseKey, {
+      headers: {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json'
+      }
+    });
+
+    // Global variables
+    let empId = null;
+    let companyLocation = null;
+    let userLocation = null;
+    let shiftDetails = null;
+    let punchInTime = null;
+    let watchId = null;
+    let hasCompletedAttendance = false;
+    let deviceApproved = false;
+    let deviceVerificationPending = false;
+
+   // Initialize the app
+    document.addEventListener("DOMContentLoaded", async () => {
+      empId = getParam("emp_id");
+      if (!empId) {
+        alert("Employee ID not found. Please login again.");
+        window.location.href = "TES.html";
+        return;
+      }
+
+      // Update UI with employee ID
+     document.title = `Attendance - EMP ${empId}`;
+      document.getElementById("empIdDisplay").textContent = `EMP ID: ${empId}`;
+
+       // Disable punch buttons initially
+      disablePunchButtons();
+
+      // Start location tracking first
+      startLocationTracking();
+
+       await checkDeviceApproval(); // Check first before other fetches
+     if (deviceApproved) {
+        await Promise.all([
+          fetchCompanyInfo(), 
+          fetchUserProfile(), 
+          fetchTodayShift(empId)
+        ]);
+      
+      // Update punch button states
+      await checkExistingPunch();
+      } else {
+// Show message if device not approved
+        showMessage("Device not approved. Please verify your device first.");
+      }
+      
+      // Start clock
+      updateTime();
+      setInterval(updateTime, 1000);
+
+      
+      // Periodic device approval check
+      setInterval(checkDeviceApproval, 300000); // 5 minutes
+    });
+
+     // Modified checkDeviceApproval function
+     async function checkDeviceApproval() {
+        try {
+            const { data, error } = await supabaseClient
+                .from('device_requests')
+                .select('status, device_id')
+                .eq('emp_id', empId)
+                .order('created_at', { ascending: false })
+                .limit(1)
+                .maybeSingle();
+
+            if (error) throw error;
+            
+            const deviceBtn = document.getElementById('deviceVerifyBtn');
+            const localDeviceId = localStorage.getItem('deviceId');
+            
+            // Case 1: Approved device with matching ID
+            if (data?.status === 'approved' && data.device_id === localDeviceId) {
+                deviceApproved = true;
+                deviceVerificationPending = false;
+                hideDeviceButton();
+            } 
+            // Case 2: Approved but device ID mismatch
+            else if (data?.status === 'approved' && data.device_id !== localDeviceId) {
+                deviceApproved = false;
+                deviceVerificationPending = false;
+                deviceBtn.textContent = '⚠️ Device Mismatch - Verify';
+                deviceBtn.disabled = false;
+                showError("Device changed! Please reverify.");
+            }
+            // Case 3: Pending approval
+            else if (data?.status === 'pending') {
+                deviceApproved = false;
+                deviceVerificationPending = true;
+                deviceBtn.textContent = '⏳ Approval Pending';
+                deviceBtn.disabled = true;
+            }
+            // Case 4: No record or not approved
+            else {
+                deviceApproved = false;
+                deviceVerificationPending = false;
+                deviceBtn.textContent = '📱 Verify Device';
+                deviceBtn.disabled = false;
+            }
+        } catch (error) {
+            console.error('Device check error:', error);
+            deviceApproved = false;
+            deviceVerificationPending = false;
+        } finally {
+            // Always update UI based on device status
+            updateButtonStatesBasedOnLocation();
+        }
+    }
+ function hideDeviceButton(immediate = false) {
+      const btn = document.getElementById('deviceVerifyBtn');
+      if (immediate) {
+        btn.style.display = 'none';
+        btn.classList.remove('fade-out');
+      } else {
+        btn.classList.add('fade-out');
+        setTimeout(() => {
+          btn.style.display = 'none';
+        }, 500);
+      }
+    }
+    async function verifyDevice() {
+      let deviceId = localStorage.getItem('deviceId');
+      if (!deviceId) {
+        deviceId = crypto.randomUUID();
+        localStorage.setItem('deviceId', deviceId);
+      }
+
+      try {
+        const { error } = await supabaseClient
+          .from('device_requests')
+          .upsert({
+            emp_id: empId,
+            device_id: deviceId,
+            status: 'pending',
+            created_at: new Date().toISOString()
+          });
+
+        if (error) throw error;
+
+        // Update button state without reload
+        const deviceBtn = document.getElementById('deviceVerifyBtn');
+        deviceBtn.textContent = '📱 Approval Pending';
+        deviceBtn.disabled = true;
+      } catch (error) {
+        console.error('Device verification error:', error);
+        showError('Failed to request device verification');
+      }
+    }
+    // Modified Button State Function
+     function updateButtonStatesBasedOnLocation() {
+        // Disable all if device not approved
+        if (!deviceApproved || hasCompletedAttendance) {
+            disablePunchButtons();
+            return;
+        }
+
+      if (!userLocation || !companyLocation) {
+        document.getElementById("punchInBtn").disabled = true;
+        document.getElementById("punchOutBtn").disabled = true;
+        return;
+      }
+
+      const distance = calculateDistance(
+        companyLocation.lat, companyLocation.lng,
+        userLocation.lat, userLocation.lng
+      );
+
+      const inRange = distance <= companyLocation.radius;
+      
+      const punchInBtn = document.getElementById("punchInBtn");
+      const punchOutBtn = document.getElementById("punchOutBtn");
+      
+      if (punchInTime) {
+        punchInBtn.disabled = true;
+        punchOutBtn.disabled = !inRange;
+      } else {
+        punchInBtn.disabled = !inRange;
+        punchOutBtn.disabled = true;
+      }
+    }
+// Device verification
+    async function verifyDevice() {
+        // Generate/store device ID if missing
+        let deviceId = localStorage.getItem('deviceId');
+        if (!deviceId) {
+            deviceId = crypto.randomUUID();
+            localStorage.setItem('deviceId', deviceId);
+        }
+
+        try {
+            const { error } = await supabaseClient
+                .from('device_requests')
+                .upsert({
+                    emp_id: empId,
+                    device_id: deviceId,
+                    status: 'pending'
+                });
+
+            if (error) throw error;
+
+            // Update UI
+            document.getElementById('deviceVerifyBtn').textContent = '⏳ Approval Pending';
+            document.getElementById('deviceVerifyBtn').disabled = true;
+            deviceVerificationPending = true;
+        } catch (error) {
+            console.error('Device verification error:', error);
+            showError('Verification request failed');
+        }
+    }
+
+ // Fetch user profile data including profile picture
+    async function fetchUserProfile() {
+      try {
+        const { data, error } = await supabaseClient
+          .from('users')
+          .select('user_profile_url, name, designation')
+          .eq('emp_id', empId)
+          .single();
+
+        if (error || !data) throw error || new Error("No user profile found");
+        
+        // Update profile picture if available
+        const profileImage = document.getElementById("profileImage");
+        const profileFallback = document.getElementById("profileFallback");
+        
+        if (data.user_profile_url) {
+          profileImage.src = data.user_profile_url;
+          profileImage.style.display = "block";
+          profileFallback.style.display = "none";
+        } else {
+          // Use initials if no image
+          profileImage.style.display = "none";
+          profileFallback.style.display = "block";
+          profileFallback.textContent = data.full_name 
+            ? getInitials(data.full_name)
+            : empId.slice(-2);
+        }
+      } catch (error) {
+        console.error("Error fetching user profile:", error);
+        // Fallback to employee ID initials
+        document.getElementById("profileFallback").textContent = empId.slice(-2);
+      }
+    }
+
+    // Helper function to get initials from full name
+    function getInitials(fullName) {
+      return fullName.split(' ')
+        .map(name => name[0])
+        .join('')
+        .toUpperCase()
+        .substring(0, 2);
+    }
+
+    // Navigation to profile page
+    function navigateToProfile() {
+      if (empId) window.location.href = `d.html?emp_id=${empId}`;
+      else alert("Employee ID not found.");
+    }
+
+    // Get URL parameter
+    function getParam(param) {
+      const urlParams = new URLSearchParams(window.location.search);
+      return urlParams.get(param);
+    }
+
+    // Fetch company information
+    async function fetchCompanyInfo() {
+      try {
+        const { data, error } = await supabaseClient
+          .from('company_info')
+          .select('company_name, latitude, longitude, allowed_radius')
+          .single();
+
+        if (error || !data) throw error || new Error("No company info found");
+        
+        companyLocation = {
+          name: data.company_name,
+          lat: parseFloat(data.latitude),
+          lng: parseFloat(data.longitude),
+          radius: data.allowed_radius || 100
+        };
+        
+        document.getElementById("companyName").textContent = companyLocation.name;
+        updateButtonStatesBasedOnLocation();
+      } catch (error) {
+        console.error("Error fetching company info:", error);
+        showError("Could not load company location. Punching disabled.");
+        disablePunchButtons();
+      }
+    }
+
+    // Fetch today's shift with improved time format handling
+   async function fetchTodayShift(empId) {
+  const today = new Date().toISOString().split('T')[0];
+  try {
+    const { data, error } = await supabaseClient
+      .from('shifts')
+      .select('shift_name, shift_time')
+      .eq('emp_id', empId)
+      .eq('shift_date', today)
+      .maybeSingle();  // maybeSingle() allows 0 or 1 row without error
+
+    if (error) {
+      console.error("Shift fetch error:", error);
+      document.getElementById("emp-shift").textContent = "Shift: Error fetching shift";
+      shiftDetails = null;
+      updateButtonStatesBasedOnLocation();
+      return;
+    }
+
+    if (!data) {
+      // No shift assigned today
+      document.getElementById("emp-shift").textContent = "Shift: Not Assigned";
+      shiftDetails = null;
+      updateButtonStatesBasedOnLocation();
+      return;
+    }
+
+
+        // Normalize different time formats
+        let normalizedTime = null;
+        if (data.shift_time) {
+          if (data.shift_time.includes('to')) {
+            // Handle "22:00:00 to 06:00:00" format
+            const [start, end] = data.shift_time.split('to').map(s => s.trim().split(':').slice(0, 2).join(':'));
+            normalizedTime = `${start}-${end}`;
+          } else if (data.shift_time.includes('-')) {
+            // Handle "08:00-17:00" format
+            normalizedTime = data.shift_time;
+          }
+        }
+
+        shiftDetails = {
+          name: data.shift_name,
+          time: normalizedTime,
+          rawTime: data.shift_time
+        };
+        
+        const displayTime = normalizedTime || data.shift_time || 'No time specified';
+        document.getElementById("emp-shift").textContent = `Shift: ${shiftDetails.name} (${displayTime})`;
+        
+        if (!normalizedTime) {
+          console.warn("Unrecognized shift time format:", data.shift_time);
+          showError("Shift time format not recognized - time validations disabled");
+        }
+      } catch (error) {
+        console.error("Shift fetch error:", error);
+        showError("Error loading shift information");
+        shiftDetails = null;
+      }
+    }
+
+    // Check for existing punch records with proper error handling
+    async function checkExistingPunch() {
+      const today = new Date().toISOString().split('T')[0];
+      try {
+        const { data, error } = await supabaseClient
+          .from('attendance')
+          .select('punch_in, punch_out')
+          .eq('emp_id', empId)
+          .eq('date', today)
+          .maybeSingle();
+
+        if (error) {
+          console.error("Attendance fetch error:", error);
+          if (error.code === '406') {
+            showError("Server cannot provide the requested data format");
+          }
+          throw error;
+        }
+
+        if (data) {
+          if (data.punch_in && !data.punch_out) {
+            punchInTime = new Date(data.punch_in);
+            document.getElementById("punchInBtn").disabled = true;
+            document.getElementById("punchOutBtn").disabled = false;
+            showMessage("You have already punched in today. Please punch out when leaving.");
+          } else if (data.punch_in && data.punch_out) {
+            hasCompletedAttendance = true;
+            disablePunchButtons();
+            showMessage("You have already completed attendance for today.");
+          } else {
+            updateButtonStatesBasedOnLocation();
+          }
+        } else {
+          updateButtonStatesBasedOnLocation();
+        }
+      } catch (error) {
+        console.error("Error checking existing punch:", error);
+        showError("Failed to check existing attendance records");
+      }
+    }
+
+    function updateButtonStatesBasedOnLocation() {
+      if (hasCompletedAttendance) {
+        disablePunchButtons();
+        return;
+      }
+
+      if (!userLocation || !companyLocation) {
+        document.getElementById("punchInBtn").disabled = true;
+        document.getElementById("punchOutBtn").disabled = true;
+        return;
+      }
+
+      const distance = calculateDistance(
+        companyLocation.lat, companyLocation.lng,
+        userLocation.lat, userLocation.lng
+      );
+
+      const inRange = distance <= companyLocation.radius;
+      
+      // Only enable punch-in if not already punched in
+      const punchInBtn = document.getElementById("punchInBtn");
+      const punchOutBtn = document.getElementById("punchOutBtn");
+      
+      if (punchInTime) {
+        punchInBtn.disabled = true;
+        punchOutBtn.disabled = !inRange;
+      } else {
+        punchInBtn.disabled = !inRange;
+        punchOutBtn.disabled = true;
+      }
+    }
+
+    // Handle punch in with improved status determination
+    async function handlePunchIn() {
+      if (!userLocation || !companyLocation) {
+        showError("Location data not available");
+        return;
+      }
+
+      const distance = calculateDistance(
+        companyLocation.lat, companyLocation.lng,
+        userLocation.lat, userLocation.lng
+      );
+
+      if (distance > companyLocation.radius) {
+        showError(`You are ${Math.round(distance)}m from office (max ${companyLocation.radius}m)`);
+        return;
+      }
+
+      try {
+        const now = new Date();
+        punchInTime = now;
+        
+        // Determine status
+        let status = "PRESENT";
+        if (shiftDetails?.time) {
+          try {
+            const [startTimeStr] = shiftDetails.time.split('-');
+            const startTime = parseTimeString(startTimeStr);
+            const lateThreshold = addMinutes(startTime, 15);
+            
+            if (now > lateThreshold) {
+              status = "LATE";
+            }
+          } catch (e) {
+            console.warn("Failed to check late status:", e);
+          }
+        }
+
+        const { data, error } = await supabaseClient
+          .from('attendance')
+          .upsert({
+            emp_id: empId,
+            date: now.toISOString().split('T')[0],
+            punch_in: now.toISOString(),
+            status: status,
+            location_lat: userLocation.lat,
+            location_lng: userLocation.lng,
+            accuracy: userLocation.accuracy
+          }, {
+            onConflict: 'emp_id,date'
+          });
+
+        if (error) throw error;
+
+        showMessage("Punched in successfully!");
+        document.getElementById("punchInBtn").disabled = true;
+        document.getElementById("punchOutBtn").disabled = false;
+      } catch (error) {
+        console.error("Punch in error:", error);
+        showError("Failed to record punch in: " + error.message);
+      }
+    }
+
+    // Handle punch out with improved status determination
+    async function handlePunchOut() {
+      if (!userLocation || !companyLocation) {
+        showError("Location data not available");
+        return;
+      }
+
+      const distance = calculateDistance(
+        companyLocation.lat, companyLocation.lng,
+        userLocation.lat, userLocation.lng
+      );
+
+      if (distance > companyLocation.radius) {
+        showError(`You are ${Math.round(distance)}m from office (max ${companyLocation.radius}m)`);
+        return;
+      }
+
+      try {
+        const now = new Date();
+        const today = now.toISOString().split('T')[0];
+        
+        // Get existing record
+        const { data: existing, error: fetchError } = await supabaseClient
+          .from('attendance')
+          .select('punch_in, status')
+          .eq('emp_id', empId)
+          .eq('date', today)
+          .single();
+
+        if (fetchError || !existing) {
+          throw new Error("No punch in found for today");
+        }
+
+        let status = existing.status;
+        
+        // Check for early punch out
+        if (shiftDetails?.time) {
+          try {
+            const [_, endTimeStr] = shiftDetails.time.split('-');
+            const endTime = parseTimeString(endTimeStr);
+            
+            if (now < endTime) {
+              status = "LEFT_EARLY";
+            }
+          } catch (e) {
+            console.warn("Failed to check early departure:", e);
+          }
+        }
+
+        const { data, error } = await supabaseClient
+          .from('attendance')
+          .update({
+            punch_out: now.toISOString(),
+            status: status,
+            location_lat_out: userLocation.lat,
+            location_lng_out: userLocation.lng,
+            accuracy_out: userLocation.accuracy
+          })
+          .eq('emp_id', empId)
+          .eq('date', today);
+
+        if (error) throw error;
+
+        showMessage("Punched out successfully!");
+        hasCompletedAttendance = true;
+        disablePunchButtons();
+      } catch (error) {
+        console.error("Punch out error:", error);
+        showError("Failed to record punch out: " + error.message);
+      }
+    }
+
+    // Location tracking functions
+    function startLocationTracking() {
+      if (!navigator.geolocation) {
+        showError("Geolocation not supported");
+        disablePunchButtons();
+        return;
+      }
+
+      document.getElementById("locationStatus").textContent = "Getting location...";
+      
+      // First immediate check
+      navigator.geolocation.getCurrentPosition(
+        position => updateLocation(position),
+        error => {
+          console.error("Location error:", error);
+          showError("Location access denied. Please enable permissions.");
+          disablePunchButtons();
+        },
+        { enableHighAccuracy: true, timeout: 10000 }
+      );
+
+      // Continuous updates
+      watchId = navigator.geolocation.watchPosition(
+        position => updateLocation(position),
+        error => {
+          console.error("Location error:", error);
+      showError("Error getting location updates");
+    },
+    { enableHighAccuracy: true, maximumAge: 10000 }
+  );
+}
+
+function updateLocation(position) {
+  userLocation = {
+    lat: position.coords.latitude,
+    lng: position.coords.longitude,
+    accuracy: position.coords.accuracy
+  };
+
+  if (!companyLocation) {
+    document.getElementById("locationStatus").textContent = "Waiting for company location...";
+    return;
+  }
+
+  const distance = calculateDistance(
+    companyLocation.lat, companyLocation.lng,
+    userLocation.lat, userLocation.lng
+  );
+
+  const inRange = distance <= companyLocation.radius;
+  
+  document.getElementById("locationStatus").textContent = 
+    `You are ${inRange ? 'within' : 'outside'} range (${Math.round(distance)}m from office)`;
+  
+  updateButtonStatesBasedOnLocation();
+}
+
+// Utility functions
+function calculateDistance(lat1, lon1, lat2, lon2) {
+  const R = 6371e3;
+  const φ1 = lat1 * Math.PI/180;
+  const φ2 = lat2 * Math.PI/180;
+  const Δφ = (lat2-lat1) * Math.PI/180;
+  const Δλ = (lon2-lon1) * Math.PI/180;
+
+  const a = Math.sin(Δφ/2) * Math.sin(Δφ/2) +
+            Math.cos(φ1) * Math.cos(φ2) *
+            Math.sin(Δλ/2) * Math.sin(Δλ/2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+
+  return R * c;
+}
+
+function parseTimeString(timeStr) {
+  if (!timeStr) return new Date();
+  const [hours, minutes] = timeStr.split(':').map(Number);
+  const date = new Date();
+  date.setHours(hours, minutes || 0, 0, 0);
+  return date;
+}
+
+function addMinutes(date, minutes) {
+  return new Date(date.getTime() + minutes * 60000);
+}
+
+// UI functions
+function updateTime() {
+  const now = new Date();
+  document.getElementById('current-time').textContent = now.toLocaleTimeString();
+  document.getElementById('current-date').textContent = now.toDateString();
+}
+
+function showMessage(message) {
+  const el = document.getElementById("successMessage");
+  el.textContent = message;
+  el.style.display = "block";
+  setTimeout(() => el.style.display = "none", 5000);
+}
+
+function showError(message) {
+  const el = document.getElementById("errorMessage");
+  el.textContent = message;
+  el.style.display = "block";
+  setTimeout(() => el.style.display = "none", 5000);
+}
+
+function disablePunchButtons() {
+  document.getElementById("punchInBtn").disabled = true;
+  document.getElementById("punchOutBtn").disabled = true;
+}
+
+// Navigation functions
+function navigateToHome() {
+  if (empId) window.location.href = `userh.html?emp_id=${empId}`;
+  else alert("Employee ID not found.");
+}
+
+function navigateToNotifications() {
+  if (empId) window.location.href = `notif.html?emp_id=${empId}`;
+  else alert("Employee ID not found.");
+}
+
+function goToShiftCalendar() {
+  if (empId) window.location.href = `shiftcan.html?emp_id=${empId}`;
+  else alert("Employee ID not found.");
+}
+
+function gotoOT() {
+  if (empId) window.location.href = `ot.html?emp_id=${empId}`;
+  else alert("Employee ID not found.");
+}
+
+function gotoexchangeduty() {
+  if (empId) window.location.href = `duty.html?emp_id=${empId}`;
+  else alert("Employee ID not found.");
+}
+
+function gotoLeave() {
+  if (empId) window.location.href = `leave.html?emp_id=${empId}`;
+  else alert("Employee ID not found.");
+}
+
+function navigateToHelp() {
+  if (empId) window.location.href = `help.html?emp_id=${empId}`;
+  else alert("Employee ID not found.");
+}
+
+// Clean up
+window.addEventListener('beforeunload', () => {
+  if (watchId) navigator.geolocation.clearWatch(watchId);
+});
+</script>
+</body>
+</html> 

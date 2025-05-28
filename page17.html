@@ -1,0 +1,1198 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Staff Details</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+.view-btn {
+    background-color: #4CAF50;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    padding: 5px 10px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 13px;
+    margin-left: 10px;
+}
+
+.view-btn:hover {
+    background-color: #45a049;
+}
+
+.view-btn i {
+    font-size: 14px;
+}
+
+
+
+
+
+#customDates {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+#customDates input[type="date"] {
+  padding: 4px 7px;
+  font-size: 13px;
+  border: 1px solid #aaa;
+  border-radius: 4px;
+  min-width: 130px;
+}
+
+
+
+        :root {
+            --primary-color: #1976D2;
+            --secondary-color: #f5f7fa;
+            --text-color: #333;
+            --border-color: #e0e0e0;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', sans-serif;
+        }
+
+        body {
+            background-color: var(--secondary-color);
+            color: var(--text-color);
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        /* Header Styles */
+        .app-header {
+            position: sticky;
+            top: 0;
+            left: 0;
+            right: 0;
+            background-color: var(--primary-color);
+            color: white;
+            padding: 12px 15px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            z-index: 100;
+            transition: all 0.3s ease;
+        }
+
+        .header-content {
+            display: flex;
+            align-items: center;
+            width: 100%;
+        }
+
+        .back-arrow {
+            font-size: 20px;
+            margin-right: 15px;
+        }
+
+        .title-container {
+            flex: 1;
+            display: flex;
+            align-items: center;
+        }
+
+        .screen-title {
+            font-size: 18px;
+            font-weight: 600;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .header-search-icon {
+            margin-left: 15px;
+            font-size: 18px;
+            display: none;
+        }
+
+        /* Search Box */
+        .search-container {
+            padding: 10px 15px;
+            background-color: white;
+            position: sticky;
+            top: 56px;
+            z-index: 90;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+            transition: all 0.3s ease;
+        }
+
+        .search-box {
+            position: relative;
+        }
+
+        .search-box input {
+            width: 100%;
+            padding: 10px 15px 10px 40px;
+            border: 1px solid var(--border-color);
+            border-radius: 25px;
+            font-size: 14px;
+            background-color: #f5f5f5;
+            transition: all 0.3s ease;
+        }
+
+        .search-box input:focus {
+            background-color: white;
+            border-color: var(--primary-color);
+            outline: none;
+        }
+
+        .search-box i {
+            position: absolute;
+            left: 15px;
+            top: 12px;
+            color: #777;
+        }
+
+        /* Filter Section */
+        .filter-section {
+            background-color: white;
+            padding: 15px;
+            position: sticky;
+            top: 106px;
+            z-index: 80;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+        }
+
+        .filter-row {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 10px;
+            overflow-x: auto;
+            padding-bottom: 5px;
+            scrollbar-width: none;
+            align-items: center;
+        }
+
+        .filter-row::-webkit-scrollbar {
+            display: none;
+        }
+
+        .filter-group {
+            min-width: 120px;
+        }
+
+        .filter-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-size: 12px;
+            color: #666;
+            font-weight: 500;
+        }
+
+        .filter-group select {
+            width: 100%;
+            padding: 8px 12px;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            font-size: 13px;
+            background-color: white;
+            appearance: none;
+            background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+            background-repeat: no-repeat;
+            background-position: right 8px center;
+            background-size: 15px;
+        }
+
+        .date-range {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            font-size: 13px;
+            color: #666;
+            margin-top: 5px;
+        }
+
+        /* Export Controls */
+        .export-controls {
+            display: flex;
+            gap: 10px;
+            margin-left: auto;
+            align-items: center;
+        }
+
+        .export-btn {
+            padding: 8px 12px;
+            border: none;
+            border-radius: 8px;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 13px;
+            height: 40px;
+            cursor: pointer;
+        }
+
+        .excel-btn {
+            background-color: #e8f5e9;
+            color: #2e7d32;
+        }
+
+        .pdf-btn {
+            background-color: #ffebee;
+            color: #c62828;
+        }
+
+        .selection-count {
+            background-color: var(--primary-color);
+            color: white;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            margin-left: 8px;
+        }
+
+        /* Virtual Scroll Container */
+        .virtual-scroll-container {
+            height: calc(100vh - 200px);
+            overflow-y: auto;
+            position: relative;
+            margin: 10px;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+        }
+        
+        .virtual-scroll-content {
+            position: relative;
+            width: 100%;
+        }
+        
+        .virtual-item {
+            position: absolute;
+            width: 100%;
+            box-sizing: border-box;
+            left: 0;
+        }
+        
+        .scroll-placeholder {
+            height: 1px;
+            visibility: hidden;
+        }
+
+        /* Card Styles */
+        .card {
+            display: flex;
+            border: 1px solid #ccc;
+            border-radius: 10px;
+            padding: 15px;
+            margin: 5px;
+            background: white;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+            align-items: center;
+        }
+
+        .profile-pic {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            object-fit: cover;
+            margin-right: 15px;
+            border: 2px solid #eee;
+        }
+
+        .profile-pic.placeholder {
+            background-color: #ddd;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: #666;
+            font-size: 12px;
+        }
+
+        .card-content {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .card-name {
+            font-weight: 600;
+            margin-bottom: 5px;
+            font-size: 16px;
+        }
+
+        .card-details {
+            font-size: 13px;
+            color: #555;
+            margin-bottom: 3px;
+        }
+
+        .card-status {
+            display: inline-block;
+            padding: 3px 8px;
+            border-radius: 10px;
+            font-size: 12px;
+            font-weight: 500;
+            margin-top: 5px;
+        }
+
+        /* Status Colors */
+        .present {
+            background-color: #e8f5e9;
+            color: #2e7d32;
+        }
+
+        .absent {
+            background-color: #ffebee;
+            color: #c62828;
+        }
+
+        .on-leave {
+            background-color: #fff8e1;
+            color: #ff8f00;
+        }
+
+        .morning {
+            background-color: #e3f2fd;
+            color: #1565c0;
+        }
+
+        .evening {
+            background-color: #f3e5f5;
+            color: #7b1fa2;
+        }
+
+        .night {
+            background-color: #e0f7fa;
+            color: #00838f;
+        }
+
+        .approved {
+            background-color: #e8f5e9;
+            color: #2e7d32;
+        }
+
+        .pending {
+            background-color: #fff8e1;
+            color: #ff8f00;
+        }
+
+        .rejected {
+            background-color: #ffebee;
+            color: #c62828;
+        }
+
+        /* Contact Links */
+        .contact-links {
+            display: flex;
+            margin-left: 10px;
+        }
+
+        .contact-link {
+            margin-left: 10px;
+            font-size: 20px;
+            color: #25d366;
+            text-decoration: none;
+        }
+
+        .contact-link.call {
+            color: #007bff;
+        }
+
+        /* No Data Message */
+        .no-data {
+            text-align: center;
+            padding: 20px;
+            color: #666;
+        }
+
+        /* Responsive Adjustments */
+        @media (max-width: 600px) {
+            .filter-group {
+                min-width: 100px;
+            }
+            
+            .export-btn {
+                padding: 6px 8px;
+                font-size: 12px;
+            }
+            
+            .virtual-scroll-container {
+                height: calc(100vh - 180px);
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Main App Header -->
+    <div class="app-header" id="appHeader">
+        <div class="header-content">
+            <div class="back-arrow"><i class="fas fa-arrow-left"></i></div>
+            <div class="title-container">
+                <div class="screen-title">Staff Details</div>
+                <div class="header-search-icon"><i class="fas fa-search"></i></div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Search Box -->
+    <div class="search-container" id="searchContainer">
+        <div class="search-box">
+            <input type="text" id="searchInput" placeholder="Search staff by name or ID">
+            <i class="fas fa-search"></i>
+        </div>
+    </div>
+    
+    <!-- Filter Section -->
+    <div class="filter-section">
+        <div class="filter-row">
+            <div class="filter-group">
+                <label>Report Type</label>
+                <select id="reportType">
+                    <option value="allstaff">All Staff</option>
+                    <option value="attendance">Attendance</option>
+                    <option value="roster">Roster</option>
+                    <option value="leave">Leave</option>
+                    <option value="ot">Over Time</option>
+                    <option value="misspunch">Miss Punch</option>
+                </select>
+            </div>
+            <div class="filter-group">
+                <label>Date Range</label>
+                <select id="dateRange">
+                    <option value="today">Today</option>
+                    <option value="week" selected>This Week</option>
+                    <option value="month">This Month</option>
+                    <option value="monthlast">Last Month</option>
+                    <option value="custom">Custom</option>
+                </select>
+            </div>
+            <div id="customDates" style="display:none;">
+                <input type="date" id="startDate" />
+                <input type="date" id="endDate" />
+            </div>
+            <div class="export-controls">
+                <button class="export-btn excel-btn" id="excelExport">
+                    <i class="fas fa-file-excel"></i> Excel
+                </button>
+                <button class="export-btn pdf-btn" id="pdfExport">
+                    <i class="fas fa-file-pdf"></i> PDF
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Virtual Scroll Container -->
+    <div class="virtual-scroll-container" id="virtualScrollContainer">
+        <div class="virtual-scroll-content" id="virtualScrollContent"></div>
+        <div class="scroll-placeholder" id="scrollPlaceholder"></div>
+    </div>
+
+    <script>
+        // Initialize Supabase
+       // Initialize Supabase
+const supabaseUrl = 'https://nqbrepbtcacdvatfcqrz.supabase.co';
+const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5xYnJlcGJ0Y2FjZHZhdGZjcXJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDU5MjgyOTIsImV4cCI6MjA2MTUwNDI5Mn0.2-IdK9Jh3Can-KT2rVUm8SMUt-7BL9OL58unLBtM9AM';
+const supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
+
+
+document.addEventListener('click', function(e) {
+    if (e.target.closest('.view-btn')) {
+        const empId = e.target.closest('.view-btn').getAttribute('data-emp-id');
+        window.open(`adminpro.html?emp_id=${empId}`, '_blank');
+        e.stopPropagation();
+    }
+});
+
+
+
+// Global variables
+let globalFetchedData = [];
+let filteredData = [];
+let currentCategory = 'allstaff';
+const ITEM_HEIGHT = 100; // Approximate height of each card in pixels
+let visibleItems = [];
+let renderTimeout = null;
+
+// DOM elements
+const virtualScrollContainer = document.getElementById('virtualScrollContainer');
+const virtualScrollContent = document.getElementById('virtualScrollContent');
+const scrollPlaceholder = document.getElementById('scrollPlaceholder');
+const searchInput = document.getElementById('searchInput');
+const reportType = document.getElementById('reportType');
+const dateRange = document.getElementById('dateRange');
+const startDate = document.getElementById('startDate');
+const endDate = document.getElementById('endDate');
+const excelExport = document.getElementById('excelExport');
+const pdfExport = document.getElementById('pdfExport');
+
+// Initialize the app
+document.addEventListener('DOMContentLoaded', () => {
+    // Event listeners
+    dateRange.addEventListener('change', handleDateRangeChange);
+    reportType.addEventListener('change', handleReportTypeChange);
+    searchInput.addEventListener('input', handleSearch);
+    excelExport.addEventListener('click', exportToExcel);
+    pdfExport.addEventListener('click', exportToPDF);
+    virtualScrollContainer.addEventListener('scroll', updateVisibleItems);
+    
+    // Add click event delegation for View buttons
+    document.addEventListener('click', function(e) {
+        if (e.target.closest('.view-btn')) {
+            const empId = e.target.closest('.view-btn').getAttribute('data-emp-id');
+            window.open(`th.html?emp_id=${empId}`, '_blank');
+            e.stopPropagation();
+        }
+    });
+    
+    // Add custom date change listeners
+    startDate.addEventListener('change', handleCustomDateChange);
+    endDate.addEventListener('change', handleCustomDateChange);
+    
+    // Set default dates
+    const today = new Date().toISOString().split('T')[0];
+    startDate.value = today;
+    endDate.value = today;
+    
+    // Initial data load
+    fetchData();
+});
+
+// Handle custom date changes
+function handleCustomDateChange() {
+    if (dateRange.value === 'custom') {
+        // Validate dates
+        const start = new Date(startDate.value);
+        const end = new Date(endDate.value);
+        
+        if (isNaN(start.getTime())) {
+            alert("Please select a valid start date");
+            return;
+        }
+        
+        if (isNaN(end.getTime())) {
+            alert("Please select a valid end date");
+            return;
+        }
+        
+        if (start > end) {
+            alert("End date must be after start date");
+            return;
+        }
+        
+        fetchData();
+    }
+}
+
+// Handle date range changes
+function handleDateRangeChange() {
+    const showCustom = dateRange.value === 'custom';
+    document.getElementById('customDates').style.display = showCustom ? 'flex' : 'none';
+    
+    if (!showCustom) {
+        fetchData();
+    }
+}
+
+// Handle report type changes
+function handleReportTypeChange() {
+    currentCategory = reportType.value;
+    fetchData();
+}
+
+// Handle search input
+function handleSearch() {
+    const searchTerm = searchInput.value.toLowerCase();
+    
+    if (searchTerm === '') {
+        filteredData = [...globalFetchedData];
+    } else {
+        filteredData = globalFetchedData.filter(item => {
+            return (
+                (item.name && item.name.toLowerCase().includes(searchTerm)) ||
+                (item.emp_id && item.emp_id.toLowerCase().includes(searchTerm)) ||
+                (item.department && item.department.toLowerCase().includes(searchTerm)) ||
+                (item.status && item.status.toLowerCase().includes(searchTerm)) ||
+                (item.reason && item.reason.toLowerCase().includes(searchTerm))
+            );
+        });
+    }
+    
+    // Debounce the render
+    clearTimeout(renderTimeout);
+    renderTimeout = setTimeout(() => {
+        updateVirtualScroll();
+    }, 300);
+}
+
+// Fetch data from Supabase
+async function fetchData() {
+    const category = currentCategory;
+    const range = dateRange.value;
+    
+    // Calculate date range
+    let from, to;
+    const today = new Date();
+
+    if (range === 'today') {
+        from = to = today;
+    } else if (range === 'week') {
+        from = new Date(today);
+        from.setDate(today.getDate() - today.getDay()); // Start of week
+        to = new Date(today);
+    } else if (range === 'month') {
+        from = new Date(today.getFullYear(), today.getMonth(), 1);
+        to = new Date(today);
+    } else if (range === 'monthlast') {
+        const lastMonth = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+        from = new Date(lastMonth);
+        to = new Date(lastMonth.getFullYear(), lastMonth.getMonth() + 1, 0);
+    } else if (range === 'custom') {
+        from = new Date(startDate.value);
+        to = new Date(endDate.value);
+        
+        if (isNaN(from.getTime())) from = new Date();
+        if (isNaN(to.getTime())) to = new Date();
+    }
+    
+    // Format dates for Supabase
+    const fromDate = from.toISOString().split('T')[0];
+    const toDate = to.toISOString().split('T')[0];
+    
+    try {
+        let data = [];
+        
+        if (category === 'allstaff') {
+            const { data: staffData, error } = await supabase
+                .from('users')
+                .select('name, emp_id, department, user_profile_url, personal_contact')
+                .eq('type', 'User');
+            
+            if (error) throw error;
+            data = staffData;
+        } 
+        else if (category === 'attendance') {
+            const { data: attendanceData, error } = await supabase
+                .from('attendance')
+                .select('emp_id, date, status')
+                .gte('date', fromDate)
+                .lte('date', toDate);
+            
+            if (error) throw error;
+            
+            if (attendanceData.length > 0) {
+                const empIds = [...new Set(attendanceData.map(a => a.emp_id))];
+                const { data: usersData, error: usersError } = await supabase
+                    .from('users')
+                    .select('emp_id, name, user_profile_url')
+                    .in('emp_id', empIds);
+                
+                if (usersError) throw usersError;
+                
+                data = attendanceData.map(a => {
+                    const user = usersData.find(u => u.emp_id === a.emp_id) || {};
+                    return {
+                        ...a,
+                        name: user.name || 'Unknown',
+                        user_profile_url: user.user_profile_url || ''
+                    };
+                });
+            }
+        }
+        else if (category === 'roster') {
+            const { data: rosterData, error } = await supabase
+                .from('shifts')
+                .select('emp_id, shift_date, shift_name, shift_time')
+                .gte('shift_date', fromDate)
+                .lte('shift_date', toDate);
+            
+            if (error) throw error;
+            
+            if (rosterData.length > 0) {
+                const empIds = [...new Set(rosterData.map(r => r.emp_id))];
+                const { data: usersData, error: usersError } = await supabase
+                    .from('users')
+                    .select('emp_id, name, user_profile_url')
+                    .in('emp_id', empIds);
+                
+                if (usersError) throw usersError;
+                
+                data = rosterData.map(r => {
+                    const user = usersData.find(u => u.emp_id === r.emp_id) || {};
+                    return {
+                        ...r,
+                        name: user.name || 'Unknown',
+                        user_profile_url: user.user_profile_url || ''
+                    };
+                });
+            }
+        }
+        else if (category === 'leave') {
+            const { data: leaveData, error } = await supabase
+                .from('leave_requests')
+                .select('emp_id, from_date, to_date, reason, status')
+                .gte('from_date', fromDate)
+                .lte('to_date', toDate);
+            
+            if (error) throw error;
+            
+            if (leaveData.length > 0) {
+                const empIds = [...new Set(leaveData.map(l => l.emp_id))];
+                const { data: usersData, error: usersError } = await supabase
+                    .from('users')
+                    .select('emp_id, name, user_profile_url')
+                    .in('emp_id', empIds);
+                
+                if (usersError) throw usersError;
+                
+                data = leaveData.map(l => {
+                    const user = usersData.find(u => u.emp_id === l.emp_id) || {};
+                    return {
+                        ...l,
+                        name: user.name || 'Unknown',
+                        user_profile_url: user.user_profile_url || ''
+                    };
+                });
+            }
+        }
+        else if (category === 'ot') {
+            const { data: otData, error } = await supabase
+                .from('ot_request')
+                .select('emp_id, shift_name, from_hour, to_hour, total_hours, reason, ot_date, status')
+                .gte('ot_date', fromDate)
+                .lte('ot_date', toDate);
+            
+            if (error) throw error;
+            
+            if (otData.length > 0) {
+                const empIds = [...new Set(otData.map(o => o.emp_id))];
+                const { data: usersData, error: usersError } = await supabase
+                    .from('users')
+                    .select('emp_id, name, user_profile_url')
+                    .in('emp_id', empIds);
+                
+                if (usersError) throw usersError;
+                
+                data = otData.map(o => {
+                    const user = usersData.find(u => u.emp_id === o.emp_id) || {};
+                    return {
+                        ...o,
+                        name: user.name || 'Unknown',
+                        user_profile_url: user.user_profile_url || ''
+                    };
+                });
+            }
+        }
+        else if (category === 'misspunch') {
+            const { data: mpData, error } = await supabase
+                .from('miss_punch')
+                .select('emp_id, date, reason, status')
+                .gte('date', fromDate)
+                .lte('date', toDate);
+            
+            if (error) throw error;
+            
+            if (mpData.length > 0) {
+                const empIds = [...new Set(mpData.map(m => m.emp_id))];
+                const { data: usersData, error: usersError } = await supabase
+                    .from('users')
+                    .select('emp_id, name, user_profile_url')
+                    .in('emp_id', empIds);
+                
+                if (usersError) throw usersError;
+                
+                data = mpData.map(m => {
+                    const user = usersData.find(u => u.emp_id === m.emp_id) || {};
+                    return {
+                        ...m,
+                        name: user.name || 'Unknown',
+                        user_profile_url: user.user_profile_url || ''
+                    };
+                });
+            }
+        }
+        
+        globalFetchedData = data;
+        filteredData = [...data];
+        updateVirtualScroll();
+        
+    } catch (error) {
+        console.error("Error fetching data:", error);
+        globalFetchedData = [];
+        filteredData = [];
+        updateVirtualScroll();
+    }
+}
+
+// Update virtual scroll content
+function updateVirtualScroll() {
+    virtualScrollContent.innerHTML = '';
+    visibleItems = [];
+    scrollPlaceholder.style.height = `${filteredData.length * ITEM_HEIGHT}px`;
+    
+    if (filteredData.length === 0) {
+        const noData = document.createElement('div');
+        noData.className = 'no-data';
+        noData.textContent = 'No data found';
+        virtualScrollContent.appendChild(noData);
+        return;
+    }
+    
+    updateVisibleItems();
+}
+
+// Update visible items based on scroll position
+function updateVisibleItems() {
+    if (filteredData.length === 0) return;
+    
+    const scrollTop = virtualScrollContainer.scrollTop;
+    const containerHeight = virtualScrollContainer.clientHeight;
+    const startIndex = Math.max(0, Math.floor(scrollTop / ITEM_HEIGHT) - 2);
+    const endIndex = Math.min(
+        startIndex + Math.ceil(containerHeight / ITEM_HEIGHT) + 4,
+        filteredData.length
+    );
+    
+    const newVisibleItems = [];
+    for (let i = startIndex; i < endIndex; i++) {
+        newVisibleItems.push(i);
+    }
+    
+    visibleItems.forEach(index => {
+        if (!newVisibleItems.includes(index)) {
+            const item = document.getElementById(`item-${index}`);
+            if (item) virtualScrollContent.removeChild(item);
+        }
+    });
+    
+    newVisibleItems.forEach(index => {
+        if (!visibleItems.includes(index)) {
+            const itemData = filteredData[index];
+            if (itemData) {
+                const item = createCardElement(itemData, index);
+                item.id = `item-${index}`;
+                item.style.top = `${index * ITEM_HEIGHT}px`;
+                virtualScrollContent.appendChild(item);
+            }
+        }
+    });
+    
+    visibleItems = newVisibleItems;
+}
+
+// Create card element for virtual scroll
+function createCardElement(item, index) {
+    const card = document.createElement('div');
+    card.className = 'virtual-item card';
+    card.style.height = `${ITEM_HEIGHT}px`;
+    
+    const profileImg = item.user_profile_url 
+        ? `<img src="${item.user_profile_url}" class="profile-pic" alt="Profile">`
+        : `<div class="profile-pic placeholder"><i class="fas fa-user"></i></div>`;
+    
+    let cardContent = '';
+    
+    if (currentCategory === 'allstaff') {
+        const contact = item.personal_contact || '';
+        const callLink = contact ? `<a href="tel:${contact}" class="contact-link call"><i class="fas fa-phone"></i></a>` : '';
+        const whatsappLink = contact ? `<a href="https://wa.me/${contact}" target="_blank" class="contact-link"><i class="fab fa-whatsapp"></i></a>` : '';
+       const viewLink = `<button class="view-btn" data-emp-id="${item.emp_id}"><i class="fas fa-eye"></i> View</button>`;
+        
+        cardContent = `
+            ${profileImg}
+            <div class="card-content">
+                <div class="card-name">${item.name || 'Unknown'}</div>
+                <div class="card-details">ID: ${item.emp_id || 'N/A'}</div>
+                <div class="card-details">Dept: ${item.department || 'N/A'}</div>
+            </div>
+            <div class="contact-links">
+                ${callLink}
+                ${whatsappLink}
+                ${viewLink}
+            </div>`;
+    }
+    else if (currentCategory === 'attendance') {
+        const date = item.date ? new Date(item.date).toLocaleDateString() : 'N/A';
+        const statusClass = item.status ? item.status.toLowerCase().replace(' ', '-') : '';
+        
+        cardContent = `
+            ${profileImg}
+            <div class="card-content">
+                <div class="card-name">${item.name || 'Unknown'}</div>
+                <div class="card-details">ID: ${item.emp_id || 'N/A'}</div>
+                <div class="card-details">Date: ${date}</div>
+                <div class="card-status ${statusClass}">${item.status || 'N/A'}</div>
+            </div>`;
+    }
+    else if (currentCategory === 'roster') {
+        const date = item.shift_date ? new Date(item.shift_date).toLocaleDateString() : 'N/A';
+        const shiftClass = item.shift_name ? item.shift_name.toLowerCase().replace(' ', '-') : '';
+        
+        cardContent = `
+            ${profileImg}
+            <div class="card-content">
+                <div class="card-name">${item.name || 'Unknown'}</div>
+                <div class="card-details">ID: ${item.emp_id || 'N/A'}</div>
+                <div class="card-details">Date: ${date}</div>
+                <div class="card-details">Shift: ${item.shift_name || 'N/A'}</div>
+            </div>`;
+    }
+    else if (currentCategory === 'leave') {
+        const fromDate = item.from_date ? new Date(item.from_date).toLocaleDateString() : 'N/A';
+        const toDate = item.to_date ? new Date(item.to_date).toLocaleDateString() : 'N/A';
+        const statusClass = item.status ? item.status.toLowerCase() : '';
+        
+        cardContent = `
+            ${profileImg}
+            <div class="card-content">
+                <div class="card-name">${item.name || 'Unknown'}</div>
+                <div class="card-details">ID: ${item.emp_id || 'N/A'}</div>
+                <div class="card-details">From: ${fromDate} To: ${toDate}</div>
+                <div class="card-status ${statusClass}">${item.status || 'N/A'}</div>
+            </div>`;
+    }
+    else if (currentCategory === 'ot') {
+        const otDate = item.ot_date ? new Date(item.ot_date).toLocaleDateString() : 'N/A';
+        const statusClass = item.status ? item.status.toLowerCase() : '';
+        
+        cardContent = `
+            ${profileImg}
+            <div class="card-content">
+                <div class="card-name">${item.name || 'Unknown'}</div>
+                <div class="card-details">ID: ${item.emp_id || 'N/A'}</div>
+                <div class="card-details">Date: ${otDate}</div>
+                <div class="card-details">Total: ${item.total_hours || 'N/A'} hours</div>
+            </div>`;
+    }
+    else if (currentCategory === 'misspunch') {
+        const date = item.date ? new Date(item.date).toLocaleDateString() : 'N/A';
+        const statusClass = item.status ? item.status.toLowerCase() : '';
+        
+        cardContent = `
+            ${profileImg}
+            <div class="card-content">
+                <div class="card-name">${item.name || 'Unknown'}</div>
+                <div class="card-details">ID: ${item.emp_id || 'N/A'}</div>
+                <div class="card-details">Date: ${date}</div>
+                <div class="card-status ${statusClass}">${item.status || 'N/A'}</div>
+            </div>`;
+    }
+    
+    card.innerHTML = cardContent;
+    return card;
+}
+
+// Export to Excel
+function exportToExcel() {
+    if (!globalFetchedData.length) {
+        alert("No data found for export");
+        return;
+    }
+
+    const reportType = document.getElementById('reportType').value;
+
+    if (reportType === 'roster') {
+        const allDates = [...new Set(globalFetchedData.map(item => item.shift_date))].sort();
+        const allStaff = [...new Set(globalFetchedData.map(item => item.name))];
+
+        const excelData = [
+            ["Sr.No", "Staff name", "Emp id", ...allDates],
+            ["", "", "", ...allDates.map(() => "Shift Details")]
+        ];
+
+        allStaff.forEach((staff, index) => {
+            const staffData = globalFetchedData.filter(item => item.name === staff);
+            const empId = staffData[0]?.emp_id || "";
+
+            const shiftNameRow = [
+                index + 1,
+                staff,
+                empId,
+                ...allDates.map(date => {
+                    const shift = staffData.find(d => d.shift_date === date);
+                    return shift ? shift.shift_name : "Absent";
+                })
+            ];
+
+            const shiftTimeRow = [
+                "",
+                "",
+                "",
+                ...allDates.map(date => {
+                    const shift = staffData.find(d => d.shift_date === date);
+                    return shift ? shift.shift_time : "";
+                })
+            ];
+
+            excelData.push(shiftNameRow, shiftTimeRow);
+        });
+
+        const worksheet = XLSX.utils.aoa_to_sheet(excelData);
+        const merges = [];
+        
+        allStaff.forEach((_, idx) => {
+            const rowStart = 2 + (idx * 2);
+            merges.push(
+                { s: { r: rowStart, c: 0 }, e: { r: rowStart + 1, c: 0 } },
+                { s: { r: rowStart, c: 1 }, e: { r: rowStart + 1, c: 1 } },
+                { s: { r: rowStart, c: 2 }, e: { r: rowStart + 1, c: 2 } }
+            );
+        });
+
+        allDates.forEach((_, idx) => {
+            merges.push({ s: { r: 0, c: 3 + idx }, e: { r: 1, c: 3 + idx } });
+        });
+
+        worksheet["!merges"] = merges;
+        worksheet["!cols"] = [
+            { wch: 8 }, { wch: 20 }, { wch: 12 },
+            ...allDates.map(() => ({ wch: 25 }))
+        ];
+
+        const workbook = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(workbook, worksheet, "Roster");
+        XLSX.writeFile(workbook, "Roster_Report.xlsx");
+    } else {
+        const filteredData = globalFetchedData.map(({ user_profile_url, ...rest }) => rest);
+        const worksheet = XLSX.utils.json_to_sheet(filteredData);
+        const workbook = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(workbook, worksheet, "Report");
+        XLSX.writeFile(workbook, `${reportType}_report.xlsx`);
+    }
+}
+
+// Export to PDF
+function exportToPDF() {
+    if (!globalFetchedData.length) {
+        alert("No data available to export");
+        return;
+    }
+
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF();
+    const category = currentCategory;
+    const dataToExport = [...globalFetchedData];
+    const cleanData = dataToExport.map(({ user_profile_url, ...rest }) => rest);
+
+    doc.setFontSize(16);
+    doc.text(`${category.toUpperCase()} REPORT`, 105, 15, { align: 'center' });
+    
+    if (category !== 'allstaff') {
+        doc.setFontSize(10);
+        const rangeText = `Date Range: ${dateRange.value === 'custom' 
+            ? `${startDate.value} to ${endDate.value}` 
+            : dateRange.value}`;
+        doc.text(rangeText, 105, 22, { align: 'center' });
+    }
+
+    let columns = [];
+    if (category === 'allstaff') {
+        columns = [
+            { header: 'Name', dataKey: 'name' },
+            { header: 'Employee ID', dataKey: 'emp_id' },
+            { header: 'Department', dataKey: 'department' },
+            { header: 'Contact', dataKey: 'personal_contact' }
+        ];
+    } 
+    else if (category === 'attendance') {
+        columns = [
+            { header: 'Name', dataKey: 'name' },
+            { header: 'Employee ID', dataKey: 'emp_id' },
+            { header: 'Date', dataKey: 'date' },
+            { header: 'Status', dataKey: 'status' }
+        ];
+    }
+    else if (category === 'roster') {
+        columns = [
+            { header: 'Name', dataKey: 'name' },
+            { header: 'Employee ID', dataKey: 'emp_id' },
+            { header: 'Date', dataKey: 'shift_date' },
+            { header: 'Shift', dataKey: 'shift_name' },
+            { header: 'Time', dataKey: 'shift_time' }
+        ];
+    }
+    else if (category === 'leave') {
+        columns = [
+            { header: 'Name', dataKey: 'name' },
+            { header: 'Employee ID', dataKey: 'emp_id' },
+            { header: 'From Date', dataKey: 'from_date' },
+            { header: 'To Date', dataKey: 'to_date' },
+            { header: 'Reason', dataKey: 'reason' },
+            { header: 'Status', dataKey: 'status' }
+        ];
+    }
+    else if (category === 'ot') {
+        columns = [
+            { header: 'Name', dataKey: 'name' },
+            { header: 'Employee ID', dataKey: 'emp_id' },
+            { header: 'OT Date', dataKey: 'ot_date' },
+            { header: 'From Hour', dataKey: 'from_hour' },
+            { header: 'To Hour', dataKey: 'to_hour' },
+            { header: 'Total Hours', dataKey: 'total_hours' },
+            { header: 'Reason', dataKey: 'reason' },
+            { header: 'Status', dataKey: 'status' }
+        ];
+    }
+    else if (category === 'misspunch') {
+        columns = [
+            { header: 'Name', dataKey: 'name' },
+            { header: 'Employee ID', dataKey: 'emp_id' },
+            { header: 'Date', dataKey: 'date' },
+            { header: 'Reason', dataKey: 'reason' },
+            { header: 'Status', dataKey: 'status' }
+        ];
+    }
+
+    doc.autoTable({
+        columns: columns,
+        body: cleanData,
+        startY: 30,
+        margin: { horizontal: 10 },
+        styles: { 
+            fontSize: 8,
+            cellPadding: 2,
+            overflow: 'linebreak'
+        },
+        columnStyles: {
+            0: { cellWidth: 25 },
+            1: { cellWidth: 20 },
+        },
+        headStyles: {
+            fillColor: [25, 118, 210],
+            textColor: 255
+        },
+        alternateRowStyles: {
+            fillColor: [240, 240, 240]
+        }
+    });
+
+    const pageCount = doc.internal.getNumberOfPages();
+    for (let i = 1; i <= pageCount; i++) {
+        doc.setPage(i);
+        doc.setFontSize(10);
+        doc.text(`Page ${i} of ${pageCount}`, 105, doc.internal.pageSize.height - 10, { align: 'center' });
+    }
+
+    doc.save(`${category}_report.pdf`);
+}
+
+// Initialize virtual scroll on window resize
+window.addEventListener('resize', () => {
+    updateVisibleItems();
+});
+
+// Back button functionality
+document.querySelector('.back-arrow').addEventListener('click', () => {
+    window.history.back();
+});</script>
+</body>
+</html>

@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Attendance Dashboard Pro</title>
+  <style>
+     * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Roboto', sans-serif;
+        }
+
+        :root {
+            --primary: #4a90e2;
+            --secondary: #7ed321;
+            --alert: #d0021b;
+            --warning: #f5a623;
+            --bg: #f8f9ff;
+        }
+
+        body {
+            background: var(--bg);
+        }
+
+        .header {
+            background: linear-gradient(135deg, var(--primary), #2673d1);
+            color: white;
+            padding: 1rem;
+            position: relative;
+        }
+
+        .nav-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+
+        .menu-icon {
+            font-size: 1.5rem;
+        }
+
+        .tabs {
+            display: flex;
+            gap: 1rem;
+            overflow-x: auto;
+            padding-bottom: 5px;
+        }
+
+        .tab {
+            background: rgba(255,255,255,0.2);
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            cursor: pointer;
+        }
+
+        .tab.active {
+            background: white;
+            color: var(--primary);
+        }
+
+        .main-content {
+            padding: 1rem;
+        }
+
+        .chart-container {
+            background: white;
+            border-radius: 15px;
+            padding: 1rem;
+            margin: 1rem 0;
+            box-shadow: 0 3px 10px rgba(0,0,0,0.05);
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 1rem;
+        }
+
+        .stat-card {
+            background: white;
+            padding: 1rem;
+            border-radius: 12px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .stat-card::after {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 4px;
+            height: 100%;
+            background: var(--primary);
+        }
+
+        .stat-title {
+            color: #666;
+            font-size: 0.9rem;
+            margin-bottom: 8px;
+        }
+
+        .stat-value {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: #333;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 10px;
+            font-size: 0.8rem;
+        }
+
+        .badge-success {
+            background: var(--secondary);
+            color: white;
+        }
+
+        .badge-warning {
+            background: var(--warning);
+            color: white;
+        }
+
+        .badge-alert {
+            background: var(--alert);
+            color: white;
+        }
+
+        .activity-list {
+            margin-top: 1rem;
+        }
+
+        .activity-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: white;
+            padding: 1rem;
+            margin: 8px 0;
+            border-radius: 10px;
+        }
+
+        .chart-bar {
+            height: 10px;
+            background: #eee;
+            border-radius: 5px;
+            margin: 1rem 0;
+            overflow: hidden;
+        }
+
+        .chart-fill {
+            height: 100%;
+            background: var(--primary);
+            width: 75%;
+            transition: width 0.3s ease;
+        }
+
+        .side-menu {
+            position: fixed;
+            left: -250px;
+            top: 0;
+            width: 250px;
+            height: 100%;
+            background: white;
+            box-shadow: 2px 0 5px rgba(0,0,0,0.1);
+            transition: 0.3s;
+        }
+
+        .menu-open .side-menu {
+            left: 0;
+        }
+
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div class="nav-top">
+      <div class="menu-icon">☰</div>
+      <div>Admin Panel - EMP001</div>
+      <div class="menu-icon">🔔</div>
+    </div>
+    <div class="tabs">
+      <div class="tab active" data-period="today">Today</div>
+      <div class="tab" data-period="weekly">Weekly</div>
+      <div class="tab" data-period="monthly">Monthly</div>
+    </div>
+  </div>
+
+  <div class="main-content">
+    <div class="chart-container">
+      <div class="stat-title">Attendance Rate</div>
+      <div class="stat-value" id="attendance-rate">--%</div>
+      <div class="chart-bar">
+        <div class="chart-fill" id="attendance-fill" style="width: 0%;"></div>
+      </div>
+      <div class="stats-grid" style="margin-top: 1rem;">
+        <div class="badge badge-success" id="on-time">On Time: --%</div>
+        <div class="badge badge-warning" id="late">Late: --%</div>
+      </div>
+    </div>
+
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-title">Total Staff</div>
+        <div class="stat-value" id="total-staff">--</div>
+        <div class="badge badge-success" style="margin-top: 8px;" id="active-staff">Active: --</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-title">Leave Status</div>
+        <div class="stat-value" id="leave-count">--</div>
+        <div class="badge badge-alert" style="margin-top: 8px;" id="pending-leave">Pending: --</div>
+      </div>
+    </div>
+
+    <div class="chart-container">
+      <div class="stat-title">Current Status Distribution</div>
+      <div class="stats-grid">
+        <div class="activity-item">
+          <span>Present</span>
+          <span class="badge badge-success" id="present-count">--</span>
+        </div>
+        <div class="activity-item">
+          <span>Absent</span>
+          <span class="badge badge-alert" id="absent-count">--</span>
+        </div>
+        <div class="activity-item">
+          <span>Late Coming</span>
+          <span class="badge badge-warning" id="late-coming-count">--</span>
+        </div>
+        <div class="activity-item">
+          <span>Weekly Off</span>
+          <span class="badge" id="weekly-off-count">--</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="chart-container">
+      <div class="stat-title">Quick Actions</div>
+      <div class="stats-grid">
+        <button class="stat-card">📅 Roster</button>
+        <button class="stat-card" id="add-staff-btn">➕ Add Staff</button>
+        
+        <button class="stat-card">📋 Requests</button>
+        <button class="stat-card">📊 Reports</button>
+
+
+      </div>
+
+    </div>
+  </div>
+
+  <div class="side-menu">
+    <!-- साइड मेन्यू कॉन्टेंट यहाँ आएगा -->
+  </div>
+
+  <!-- Supabase JS SDK -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script type="module">
+  import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm'
+
+  const SUPABASE_URL = 'https://nqbrepbtcacdvatfcqrz.supabase.co';
+  const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5xYnJlcGJ0Y2FjZHZhdGZjcXJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDU5MjgyOTIsImV4cCI6MjA2MTUwNDI5Mn0.2-IdK9Jh3Can-KT2rVUm8SMUt-7BL9OL58unLBtM9AM';
+
+  const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+  document.addEventListener("DOMContentLoaded", () => {
+    const tabs = document.querySelectorAll('.tab');
+    tabs.forEach(tab => {
+      tab.addEventListener('click', () => {
+        tabs.forEach(t => t.classList.remove('active'));
+        tab.classList.add('active');
+        const period = tab.getAttribute('data-period');
+        fetchData(period);
+      });
+    });
+
+    // Initial fetch for 'Today'
+    fetchData('today');
+  });
+
+  async function fetchData(period) {
+    const { fromDate, toDate } = getDateRange(period);
+
+    // ✅ Total Users
+    const { data: users, error: userError } = await supabase
+      .from('users')
+      .select('*')
+      .eq('type', 'User');
+
+    const totalUsers = users ? users.length : 0;
+    document.getElementById('total-staff').textContent = totalUsers;
+    document.getElementById('active-staff').textContent = `Active: ${totalUsers}`;
+
+    // ✅ Attendance (use 'date' column)
+    const { data: attendance, error: attError } = await supabase
+      .from('attendance')
+      .select('*')
+      .gte('date', fromDate)
+      .lte('date', toDate);
+
+    const presentCount = attendance.filter(a => a.status === 'PRESENT').length;
+    const absentCount = attendance.filter(a => a.status === 'ABSENT').length;
+    const leaveCount = attendance.filter(a => a.status === 'LEAVE').length;
+    const lateCount = attendance.filter(a => a.status === 'LATE').length;
+
+    const attendanceRate = totalUsers ? Math.round((presentCount / totalUsers) * 100) : 0;
+    document.getElementById('attendance-rate').textContent = `${attendanceRate}%`;
+    document.getElementById('attendance-fill').style.width = `${attendanceRate}%`;
+
+    const onTimePercentage = totalUsers ? Math.round(((presentCount - lateCount) / totalUsers) * 100) : 0;
+    const latePercentage = totalUsers ? Math.round((lateCount / totalUsers) * 100) : 0;
+
+    document.getElementById('on-time').textContent = `On Time: ${onTimePercentage}%`;
+    document.getElementById('late').textContent = `Late: ${latePercentage}%`;
+
+    document.getElementById('present-count').textContent = presentCount;
+    document.getElementById('absent-count').textContent = absentCount;
+    document.getElementById('late-coming-count').textContent = lateCount;
+    document.getElementById('leave-count').textContent = leaveCount;
+    document.getElementById('pending-leave').textContent = `Pending: --`;
+
+    // ✅ Shifts (use 'shift_date' instead of 'date')
+    const { data: shifts, error: shiftError } = await supabase
+      .from('shifts')
+      .select('*')
+      .gte('shift_date', fromDate)
+      .lte('shift_date', toDate);
+
+    const weeklyOffCount = shifts ? shifts.filter(s => s.shift === 'WO').length : 0;
+    document.getElementById('weekly-off-count').textContent = weeklyOffCount;
+  }
+
+  function getDateRange(period) {
+    const today = new Date();
+    let fromDate, toDate;
+
+    if (period === 'today') {
+      fromDate = toDate = today;
+    } else if (period === 'weekly') {
+      const first = today.getDate() - today.getDay();
+      fromDate = new Date(today.setDate(first));
+      toDate = new Date();
+    } else if (period === 'monthly') {
+      fromDate = new Date(today.getFullYear(), today.getMonth(), 1);
+      toDate = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+    }
+
+    return {
+      fromDate: fromDate.toISOString().split('T')[0],
+      toDate: toDate.toISOString().split('T')[0]
+    };
+  }
+</script>
+
+</body>
+</html>

@@ -1,0 +1,819 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Employee Portal</title>
+  <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet"/>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdn.sheetjs.com/xlsx-0.19.3/package/dist/xlsx.full.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
+  <style>
+
+
+
+    html, body { overflow-x: visible; }
+    .combined-shift { background: linear-gradient(135deg, #3B82F6 50%, #EC4899 50%); }
+    .attendance-present { background-color: #10B981; }
+    .attendance-absent { background-color: #EF4444; }
+    .attendance-leave { background-color: #6B7280; }
+    .hide-nav { transform: translateY(100%); transition: transform 0.3s ease-in-out; }
+    .show-nav { transform: translateY(0); transition: transform 0.3s ease-in-out; }
+    .calendar-cell {
+      padding: 10px;
+      text-align: center;
+      border-radius: 8px;
+      font-weight: bold;
+      color: black;
+    }
+    .night-morning {
+      background: linear-gradient(135deg, #3B82F6 50%, #10B981 50%);
+      color: white !important;
+    }
+    .emp-header {
+      background-color: #2563eb;
+      color: white;
+      padding: 12px 16px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    .back-arrow {
+      font-size: 20px;
+      cursor: pointer;
+    }
+    .header-title {
+      font-size: 18px;
+      font-weight: 600;
+      margin: 0;
+    }
+    .emp-id {
+      font-size: 14px;
+      font-weight: bold;
+    }
+    .checkbox-container {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      margin: 15px 0;
+    }
+    .checkbox-item {
+      display: flex;
+      align-items: center;
+    }
+    .checkbox-item input {
+      margin-right: 10px;
+    }
+    .dropdown-item {
+      padding: 8px 12px;
+      cursor: pointer;
+    }
+    .dropdown-item:hover {
+      background-color: #f3f4f6;
+    }
+
+#shiftModal > div {
+  overflow: visible; /* important: let dropdown overflow naturally */
+  position: relative; /* for z-index context */
+}
+
+
+#wardDropdown {
+  z-index: 60 !important; /* Make sure it goes above the modal */
+}
+
+
+#shiftModal > div {
+  max-height: 90vh; /* मोबाइल स्क्रीन के लिए अधिकतम ऊंचाई */
+  overflow-y: auto; /* स्क्रॉल करने योग्य बनाएं */
+  display: flex;
+  flex-direction: column; /* बटन्स को नीचे रखने के लिए */
+}
+
+/* Ward ड्रॉपडाउन के लिए स्टाइल अपडेट करें */
+#wardDropdown {
+  max-height: 150px; /* कम ऊंचाई */
+  top: 100%; /* बटन के नीचे दिखाएं */
+  margin-top: 4px;
+  margin-bottom: 0;
+  z-index: 1000 !important; /* बटन्स के ऊपर दिखे */
+}
+
+/* Checkbox कंटेनर के लिए स्क्रॉल जोड़ें */
+.checkbox-container {
+  max-height: 200px;
+  overflow-y: auto;
+  margin-bottom: 1rem;
+}
+
+/* बटन कंटेनर को स्टिकी बनाएं */
+.modal-footer {
+  position: sticky;
+  bottom: 0;
+  background: white;
+  padding-top: 1rem;
+  z-index: 1; /* ड्रॉपडाउन के नीचे रहने दे */
+}
+
+
+  </style>
+</head>
+<body class="bg-gray-50">
+
+  <!-- Header -->
+  <header class="emp-header">
+    <span class="back-arrow" onclick="window.history.back()">←</span>
+    <h1 class="header-title">Employee Shift Details</h1>
+    <span id="empLabel" class="emp-id">EMP001</span>
+  </header>
+
+  <!-- Stats Section -->
+  <div class="p-4 bg-white shadow">
+    <div id="shiftStats">
+      <div class="grid grid-cols-7 gap-6 text-center mb-6">
+        <div class="p-2 border-r"><p class="text-gray-500 text-sm">M</p><p class="font-bold text-xl" id="morningCount">0</p></div>
+        <div class="p-2 border-r"><p class="text-gray-500 text-sm">E</p><p class="font-bold text-xl" id="eveningCount">0</p></div>
+        <div class="p-2 border-r"><p class="text-gray-500 text-sm">N</p><p class="font-bold text-xl" id="nightCount">0</p></div>
+        <div class="p-2 border-r"><p class="text-gray-500 text-sm">M+E</p><p class="font-bold text-xl" id="meCount">0</p></div>
+        <div class="p-2 border-r"><p class="text-gray-500 text-sm">L</p><p class="font-bold text-xl" id="LeaveCount">0</p></div>
+        <div class="p-2 border-r"><p class="text-gray-500 text-sm">WO</p><p class="font-bold text-xl" id="WeeklyOffCount">0</p></div>
+        <div class="p-2"><p class="text-gray-500 text-sm">N+M</p><p class="font-bold text-xl" id="nmCount">0</p></div>
+      </div>
+    </div>
+
+    <div class="flex items-center space-x-2">
+      <button id="resetDate" class="hidden px-2 py-1 text-red-600 rounded-full flex items-center space-x-1">
+        <span class="material-icons">restart_alt</span>
+      </button>
+      <select id="monthSelect" class="p-2 border rounded"></select>
+      <select id="yearSelect" class="p-2 border rounded"></select>
+      <button id="downloadExcel" class="ml-auto px-3 py-2 bg-green-600 text-white rounded flex items-center">
+        <span class="material-icons mr-1">download</span> Excel
+      </button>
+      <button id="downloadPdf" class="px-3 py-2 bg-red-600 text-white rounded flex items-center">
+        <span class="material-icons mr-1">picture_as_pdf</span> PDF
+      </button>
+    </div>
+  </div>
+
+  <!-- Calendar -->
+  <div class="p-4">
+    <div class="grid grid-cols-7 gap-1 mb-2 text-center text-sm font-medium">
+      <div>Sun</div><div>Mon</div><div>Tue</div><div>Wed</div><div>Thu</div><div>Fri</div><div>Sat</div>
+    </div>
+    <div id="calendar" class="grid grid-cols-7 gap-1"></div>
+  </div>
+
+  <!-- Legend -->
+  <div class="shift-indicator" style="display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 10px; justify-content: center;">
+    <div class="indicator-item" style="display: flex; align-items: center;">
+      <span style="width: 15px; height: 15px; background: #1033e3; margin-right: 5px; display: inline-block; border-radius: 3px;"></span> Morning
+    </div>
+    <div class="indicator-item" style="display: flex; align-items: center;">
+      <span style="width: 15px; height: 15px; background: #EC4899; margin-right: 5px; display: inline-block; border-radius: 3px;"></span> Evening
+    </div>
+    <div class="indicator-item" style="display: flex; align-items: center;">
+      <span style="width: 15px; height: 15px; background: #10B981; margin-right: 5px; display: inline-block; border-radius: 3px;"></span> Night
+    </div>
+    <div class="indicator-item" style="display: flex; align-items: center;">
+      <span style="width: 15px; height: 15px; background: #802121; margin-right: 5px; display: inline-block; border-radius: 3px;"></span> Night + Morning
+    </div>
+    <div class="indicator-item" style="display: flex; align-items: center;">
+      <span style="width: 15px; height: 15px; background: #d67d29; margin-right: 5px; display: inline-block; border-radius: 3px;"></span> Morning + Evening
+    </div>
+    <div class="indicator-item" style="display: flex; align-items: center;">
+      <span style="width: 15px; height: 15px; background: #38BDF8; margin-right: 5px; display: inline-block; border-radius: 3px;"></span> Weekly Off
+    </div>
+    <div class="indicator-item" style="display: flex; align-items: center;">
+      <span style="width: 15px; height: 15px; background: #6B7280; margin-right: 5px; display: inline-block; border-radius: 3px;"></span> Leave
+    </div>
+    <div class="indicator-item" style="display: flex; align-items: center;">
+      <span style="width: 15px; height: 15px; background: #EF4444; margin-right: 5px; display: inline-block; border-radius: 3px;"></span> Absent
+    </div>
+  </div>
+
+  <!-- Shift Update Modal -->
+
+
+  <!-- shiftModal -->
+<div id="shiftModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
+  <div class="bg-white p-6 rounded-lg w-80 shadow-lg relative overflow-visible">
+
+      <h3 class="text-lg font-semibold mb-2">Update Shift</h3>
+      <p id="selectedDateText" class="text-sm text-gray-600 mb-3"></p>
+
+      <div class="checkbox-container">
+        <div class="checkbox-item">
+          <input type="checkbox" id="morningCheckbox" name="shift" value="Morning">
+          <label for="morningCheckbox">Morning</label>
+        </div>
+        <div class="checkbox-item">
+          <input type="checkbox" id="eveningCheckbox" name="shift" value="Evening">
+          <label for="eveningCheckbox">Evening</label>
+        </div>
+        <div class="checkbox-item">
+          <input type="checkbox" id="nightCheckbox" name="shift" value="Night">
+          <label for="nightCheckbox">Night</label>
+        </div>
+        <div class="checkbox-item">
+          <input type="checkbox" id="leaveCheckbox" name="shift" value="Leave">
+          <label for="leaveCheckbox">Leave</label>
+        </div>
+        <div class="checkbox-item">
+          <input type="checkbox" id="offCheckbox" name="shift" value="Weekly Off">
+          <label for="offCheckbox">Weekly Off</label>
+        </div>
+      </div>
+
+      <!-- Inside your shiftModal div -->
+<div class="mb-4" id="wardContainer">
+  <label class="block mb-1 text-sm">Ward</label>
+  <div class="relative">
+    <button id="wardDropdownButton" class="w-full p-2 border rounded text-left flex justify-between items-center">
+      <span id="selectedWardText">Select Ward</span>
+      <span class="material-icons">arrow_drop_down</span>
+    </button>
+   <!-- Dropdown -->
+<div id="wardDropdown" class="absolute z-50 w-full bg-white border rounded shadow-lg hidden"
+     style="max-height: 200px; overflow-y: auto;">
+
+
+    <div class="dropdown-item" data-value="NICU">NICU</div>
+    <div class="dropdown-item" data-value="PRIVATE">PRIVATE</div>
+    <div class="dropdown-item" data-value="GENERAL WARD">GENERAL WARD</div>
+    <div class="dropdown-item" data-value="EMERGENCY">EMERGENCY</div>
+    <div class="dropdown-item" data-value="DIALYSIS">DIALYSIS</div>
+    <div class="dropdown-item" data-value="CTVS">CTVS</div>
+    <div class="dropdown-item" data-value="POST OP">POST OP</div>
+    <div class="dropdown-item" data-value="OT">OT</div>
+    <div class="dropdown-item" data-value="EMERGENCY-ICU">EMERGENCY-ICU</div>
+    <div class="dropdown-item" data-value="ICU">ICU</div>
+    <div class="dropdown-item" data-value="OPD">OPD</div>
+    <div class="dropdown-item" data-value="CAMP">CAMP</div>
+    <div class="dropdown-item" data-value="SECOND FLOOR PVT">SECOND FLOOR PVT</div>
+  </div>
+  </div>
+</div>
+
+      <div class="flex justify-end gap-2">
+        <button id="cancelButton" class="px-4 py-1 bg-gray-200 rounded">Cancel</button>
+        <button id="submitShiftBtn" class="px-4 py-1 bg-blue-600 text-white rounded">Update</button>
+      </div>
+    </div>
+  </div>
+
+
+  <script>
+  
+const { createClient } = supabase;
+const supabaseClient = createClient(
+  'https://nqbrepbtcacdvatfcqrz.supabase.co',
+  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5xYnJlcGJ0Y2FjZHZhdGZjcXJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDU5MjgyOTIsImV4cCI6MjA2MTUwNDI5Mn0.2-IdK9Jh3Can-KT2rVUm8SMUt-7BL9OL58unLBtM9AM'
+);
+
+// Configuration
+const empId = "EMP002";
+let shiftTimes = {
+  'Morning': { code: 'M', from_time: '00:00', to_time: '00:00' },
+  'Evening': { code: 'E', from_time: '00:00', to_time: '00:00' },
+  'Night': { code: 'N', from_time: '00:00', to_time: '00:00' },
+  'Leave': { code: 'L', from_time: '00:00', to_time: '00:00' },
+  'Weekly Off': { code: 'WO', from_time: '00:00', to_time: '00:00' }
+};
+
+// State variables
+let selectedDate = "";
+let shiftsData = [];
+let currentDate = new Date();
+let employeeName = "";
+let selectedWard = "";
+
+document.addEventListener('DOMContentLoaded', async function() {
+  await initializeApp();
+});
+
+async function initializeApp() {
+  document.getElementById("empLabel").textContent = empId;
+  await fetchShiftTimes();
+  setupDropdowns();
+  setupEventListeners();
+  await fetchEmployeeName();
+  await fetchShifts();
+}
+
+async function fetchShiftTimes() {
+  try {
+    const { data, error } = await supabaseClient
+      .from('shiftime')
+      .select('shift_name, from_time, to_time');
+    
+    if (!error && data && data.length > 0) {
+      // Create mapping from codes (M/E/N) to times
+      const codeMap = {};
+      data.forEach(shift => {
+        codeMap[shift.shift_name] = {
+          from_time: shift.from_time,
+          to_time: shift.to_time
+        };
+      });
+      
+      // Update our shiftTimes with actual times from DB
+      Object.keys(shiftTimes).forEach(fullName => {
+        const code = shiftTimes[fullName].code;
+        if (codeMap[code]) {
+          shiftTimes[fullName].from_time = codeMap[code].from_time;
+          shiftTimes[fullName].to_time = codeMap[code].to_time;
+        }
+      });
+      
+      // Add combined shifts
+      shiftTimes['Morning+Evening'] = {
+        from_time: shiftTimes['Morning'].from_time,
+        to_time: shiftTimes['Evening'].to_time,
+        code: 'M+E'
+      };
+      
+      shiftTimes['Morning+Night'] = {
+        from_time: shiftTimes['Night'].from_time,
+        to_time: shiftTimes['Morning'].to_time,
+        code: 'M+N'
+      };
+    }
+  } catch (error) {
+    console.error("Error loading shift times:", error);
+    // Continue with default times if error occurs
+  }
+}
+
+function setupDropdowns() {
+  const monthSelect = document.getElementById('monthSelect');
+  const yearSelect = document.getElementById('yearSelect');
+  
+  // Populate months
+  for (let i = 0; i < 12; i++) {
+    const option = document.createElement('option');
+    option.value = i;
+    option.text = new Date(0, i).toLocaleString('default', { month: 'short' });
+    monthSelect.appendChild(option);
+  }
+  monthSelect.value = currentDate.getMonth();
+
+  // Populate years
+  const currentYear = new Date().getFullYear();
+  for (let y = currentYear - 2; y <= currentYear + 2; y++) {
+    const option = document.createElement('option');
+    option.value = y;
+    option.text = y;
+    yearSelect.appendChild(option);
+  }
+  yearSelect.value = currentYear;
+}
+
+function setupEventListeners() {
+  // Date navigation
+  document.getElementById('monthSelect').addEventListener('change', handleMonthYearChange);
+  document.getElementById('yearSelect').addEventListener('change', handleMonthYearChange);
+  document.getElementById('resetDate').addEventListener('click', resetToCurrentMonth);
+
+  // Download buttons
+  document.getElementById('downloadExcel').addEventListener('click', downloadExcel);
+  document.getElementById('downloadPdf').addEventListener('click', downloadPdf);
+
+  // Ward dropdown
+// Get the elements
+const wardDropdownButton = document.getElementById('wardDropdownButton');
+const wardDropdown = document.getElementById('wardDropdown');
+
+// Toggle dropdown on button click
+wardDropdownButton?.addEventListener('click', (e) => {
+  e.stopPropagation(); // prevent closing immediately on same click
+  wardDropdown.classList.toggle('hidden');
+});
+
+// Close dropdown when clicked outside
+document.addEventListener('click', (e) => {
+  const isDropdownButton = e.target.closest('#wardDropdownButton');
+  const isDropdownItem = e.target.closest('.dropdown-item');
+  if (!isDropdownButton && !isDropdownItem) {
+    wardDropdown.classList.add('hidden');
+  }
+});
+
+
+  document.querySelectorAll('#wardDropdown .dropdown-item').forEach(item => {
+    item.addEventListener('click', function() {
+      selectedWard = this.getAttribute('data-value');
+      document.getElementById('selectedWardText').textContent = selectedWard;
+      wardDropdown.classList.add('hidden');
+    });
+  });
+
+  // Shift checkboxes
+  const checkboxes = document.querySelectorAll('input[name="shift"]');
+  const wardContainer = document.getElementById('wardContainer');
+
+  checkboxes.forEach(checkbox => {
+    checkbox.addEventListener('change', function() {
+      handleShiftSelection(this, checkboxes, wardContainer);
+    });
+  });
+
+  // Modal buttons
+  document.getElementById('cancelButton')?.addEventListener('click', closeShiftModal);
+  document.getElementById('submitShiftBtn')?.addEventListener('click', updateShift);
+}
+
+function handleShiftSelection(selectedCheckbox, allCheckboxes, wardContainer) {
+  const isLeaveOrWeeklyOff = ['Leave', 'Weekly Off'].includes(selectedCheckbox.value);
+  
+  if (isLeaveOrWeeklyOff) {
+    if (selectedCheckbox.checked) {
+      allCheckboxes.forEach(cb => {
+        if (cb !== selectedCheckbox) {
+          cb.checked = false;
+          cb.disabled = true;
+        }
+      });
+      wardContainer?.classList.add('disabled');
+      document.getElementById('selectedWardText').textContent = "Not Applicable";
+    } else {
+      allCheckboxes.forEach(cb => cb.disabled = false);
+      wardContainer?.classList.remove('disabled');
+      document.getElementById('selectedWardText').textContent = "Select Ward";
+    }
+  } else {
+    wardContainer?.classList.remove('disabled');
+    
+    if (selectedCheckbox.value === 'Night') {
+      document.getElementById('eveningCheckbox').checked = false;
+    } else if (selectedCheckbox.value === 'Evening') {
+      document.getElementById('nightCheckbox').checked = false;
+    }
+    
+    if (selectedCheckbox.value === 'Evening' || selectedCheckbox.value === 'Night') {
+      document.getElementById('morningCheckbox').disabled = false;
+    }
+  }
+}
+
+async function fetchEmployeeName() {
+  const { data, error } = await supabaseClient
+    .from('users')
+    .select('name')
+    .eq('emp_id', empId)
+    .single();
+
+  if (data) employeeName = data.name;
+  else if (error) console.error("Error fetching employee name:", error);
+}
+
+async function fetchShifts() {
+  const year = currentDate.getFullYear();
+  const month = currentDate.getMonth();
+  const startDate = `${year}-${String(month + 1).padStart(2, '0')}-01`;
+  const endDate = `${year}-${String(month + 1).padStart(2, '0')}-${new Date(year, month + 1, 0).getDate()}`;
+
+  const { data, error } = await supabaseClient
+    .from('shifts')
+    .select('shift_date, shift_name, shift_time, ward, emp_name')
+    .eq('emp_id', empId)
+    .gte('shift_date', startDate)
+    .lte('shift_date', endDate);
+
+  if (error) {
+    console.error("Error fetching shifts:", error);
+  } else {
+    // Ensure shift_time is properly formatted
+    shiftsData = data.map(shift => {
+      if (!shift.shift_time || !shift.shift_time.includes('to')) {
+        const timeData = shiftTimes[shift.shift_name] || { from_time: '00:00', to_time: '00:00' };
+        shift.shift_time = `${timeData.from_time} to ${timeData.to_time}`;
+      }
+      return shift;
+    });
+    
+    renderCalendar();
+    countShifts();
+  }
+}
+
+function renderCalendar() {
+  const calendar = document.getElementById('calendar');
+  if (!calendar) return;
+
+  calendar.innerHTML = '';
+  const year = currentDate.getFullYear();
+  const month = currentDate.getMonth();
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const startDay = new Date(year, month, 1).getDay();
+  const today = new Date();
+  const isCurrentMonth = month === today.getMonth() && year === today.getFullYear();
+
+  for (let i = 0; i < startDay; i++) {
+    calendar.appendChild(document.createElement('div'));
+  }
+
+  for (let day = 1; day <= daysInMonth; day++) {
+    const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+    const shift = shiftsData.find(s => s.shift_date.startsWith(dateStr));
+    const dayElement = document.createElement('div');
+    
+    dayElement.className = 'flex items-center justify-center w-10 h-10 rounded-full cursor-pointer border mx-auto';
+    dayElement.textContent = day;
+
+    if (shift) {
+      dayElement.style.backgroundColor = getShiftColor(shift.shift_name);
+      dayElement.style.color = 'white';
+      dayElement.title = `${shift.shift_name}: ${shift.shift_time}`;
+    }
+
+    dayElement.addEventListener('click', () => openShiftModal(dateStr, shift));
+
+    if (isCurrentMonth && day === today.getDate()) {
+      dayElement.style.border = '2px solid black';
+    }
+
+    calendar.appendChild(dayElement);
+  }
+}
+
+function openShiftModal(dateStr, shiftData = null) {
+  selectedDate = dateStr;
+  document.getElementById('selectedDateText').textContent = `Date: ${dateStr}`;
+  
+  const checkboxes = document.querySelectorAll('input[name="shift"]');
+  const wardContainer = document.getElementById('wardContainer');
+  
+  checkboxes.forEach(cb => {
+    cb.checked = false;
+    cb.disabled = false;
+  });
+  
+  wardContainer?.classList.remove('disabled');
+  selectedWard = "";
+  document.getElementById('selectedWardText').textContent = "Select Ward";
+  
+  if (shiftData) {
+    if (shiftData.shift_name === 'Leave' || shiftData.shift_name === 'Weekly Off') {
+      const checkbox = document.querySelector(`input[value="${shiftData.shift_name}"]`);
+      if (checkbox) {
+        checkbox.checked = true;
+        handleShiftSelection(checkbox, checkboxes, wardContainer);
+      }
+    } else {
+      if (shiftData.shift_name.includes('+')) {
+        shiftData.shift_name.split('+').forEach(shift => {
+          const checkbox = document.querySelector(`input[value="${shift.trim()}"]`);
+          if (checkbox) checkbox.checked = true;
+        });
+      } else {
+        const checkbox = document.querySelector(`input[value="${shiftData.shift_name}"]`);
+        if (checkbox) checkbox.checked = true;
+      }
+      
+      if (shiftData.ward) {
+        selectedWard = shiftData.ward;
+        document.getElementById('selectedWardText').textContent = shiftData.ward;
+      }
+    }
+  }
+  
+  document.getElementById('shiftModal').classList.remove('hidden');
+  document.getElementById('shiftModal').classList.add('flex');
+}
+
+async function updateShift() {
+  const selectedCheckboxes = Array.from(document.querySelectorAll('input[name="shift"]:checked'));
+  
+  if (selectedCheckboxes.length === 0) {
+    alert("Please select at least one shift");
+    return;
+  }
+
+  let shiftName, shiftTime;
+  
+  if (selectedCheckboxes.length === 1) {
+    shiftName = selectedCheckboxes[0].value;
+    const timeData = shiftTimes[shiftName] || { from_time: '00:00', to_time: '00:00' };
+    shiftTime = `${timeData.from_time} to ${timeData.to_time}`;
+  } else {
+    const shiftValues = selectedCheckboxes.map(cb => cb.value).sort();
+    
+    if (shiftValues.includes('Morning') && shiftValues.includes('Evening')) {
+      shiftName = "Morning+Evening";
+      shiftTime = `${shiftTimes['Morning'].from_time} to ${shiftTimes['Evening'].to_time}`;
+    } 
+    else if (shiftValues.includes('Morning') && shiftValues.includes('Night')) {
+      shiftName = "Morning+Night";
+      shiftTime = `${shiftTimes['Night'].from_time} to ${shiftTimes['Morning'].to_time}`;
+    }
+    else {
+      alert("Invalid shift combination");
+      return;
+    }
+  }
+
+  const wardValue = ['Leave', 'Weekly Off'].includes(shiftName) ? null : selectedWard;
+  
+  if (!wardValue && !['Leave', 'Weekly Off'].includes(shiftName)) {
+    alert("Please select a ward");
+    return;
+  }
+
+  const { data: existingShift, error: fetchError } = await supabaseClient
+    .from('shifts')
+    .select('*')
+    .eq('emp_id', empId)
+    .eq('shift_date', selectedDate)
+    .maybeSingle();
+
+  let error;
+  if (existingShift) {
+    const { error: updateError } = await supabaseClient
+      .from('shifts')
+      .update({
+        shift_name: shiftName,
+        shift_time: shiftTime,
+        ward: wardValue,
+        emp_name: employeeName
+      })
+      .eq('emp_id', empId)
+      .eq('shift_date', selectedDate);
+    error = updateError;
+  } else {
+    const { error: insertError } = await supabaseClient
+      .from('shifts')
+      .insert([{
+        emp_id: empId,
+        emp_name: employeeName,
+        shift_date: selectedDate,
+        shift_name: shiftName,
+        shift_time: shiftTime,
+        ward: wardValue
+      }]);
+    error = insertError;
+  }
+
+  if (error) {
+    console.error("Error saving shift:", error);
+    alert("Error saving shift");
+  } else {
+    closeShiftModal();
+    await fetchShifts();
+  }
+}
+
+function closeShiftModal() {
+  document.getElementById('shiftModal').classList.add('hidden');
+}
+
+function countShifts() {
+  const counts = {
+    morning: 0,
+    evening: 0,
+    night: 0,
+    me: 0,
+    nm: 0,
+    leave: 0,
+    weeklyOff: 0
+  };
+
+  shiftsData.forEach(shift => {
+    const shiftName = shift.shift_name;
+    
+    if (shiftName === 'Morning') counts.morning++;
+    else if (shiftName === 'Evening') counts.evening++;
+    else if (shiftName === 'Night') counts.night++;
+    else if (shiftName === 'Morning+Evening' || shiftName === 'Evening+Morning') counts.me++;
+    else if (shiftName === 'Morning+Night' || shiftName === 'Night+Morning') counts.nm++;
+    else if (shiftName === 'Leave') counts.leave++;
+    else if (shiftName === 'Weekly Off') counts.weeklyOff++;
+  });
+
+  document.getElementById('morningCount').textContent = counts.morning;
+  document.getElementById('eveningCount').textContent = counts.evening;
+  document.getElementById('nightCount').textContent = counts.night;
+  document.getElementById('meCount').textContent = counts.me;
+  document.getElementById('nmCount').textContent = counts.nm;
+  document.getElementById('LeaveCount').textContent = counts.leave;
+  document.getElementById('WeeklyOffCount').textContent = counts.weeklyOff;
+}
+
+function getShiftColor(shiftName) {
+  const colors = {
+    'Morning': '#1033e3',
+    'Evening': '#EC4899',
+    'Night': '#10B981',
+    'Weekly Off': '#38BDF8',
+    'Leave': '#6B7280',
+    'Morning+Evening': '#d67d29',
+    'Morning+Night': '#802121'
+  };
+
+  return colors[shiftName] || '';
+}
+
+function handleMonthYearChange() {
+  currentDate.setMonth(parseInt(document.getElementById('monthSelect').value));
+  currentDate.setFullYear(parseInt(document.getElementById('yearSelect').value));
+  document.getElementById('resetDate').style.display = 'inline-block';
+  fetchShifts();
+}
+
+function resetToCurrentMonth() {
+  currentDate = new Date();
+  document.getElementById('monthSelect').value = currentDate.getMonth();
+  document.getElementById('yearSelect').value = currentDate.getFullYear();
+  document.getElementById('resetDate').style.display = 'none';
+  fetchShifts();
+}
+
+function prepareExportData() {
+  const year = currentDate.getFullYear();
+  const month = currentDate.getMonth();
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  
+  return Array.from({ length: daysInMonth }, (_, i) => {
+    const day = i + 1;
+    const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+    const shift = shiftsData.find(s => s.shift_date.startsWith(dateStr));
+    
+    return {
+      "Employee ID": empId,
+      "Name": employeeName,
+      "Date": dateStr,
+      "Day": new Date(dateStr).toLocaleDateString('en-US', { weekday: 'short' }),
+      "Shift": shift?.shift_name || 'Not Assigned',
+      "Shift Time": shift?.shift_time || 'Not Assigned',
+      "Ward": shift?.ward || (shift?.shift_name === 'Leave' || shift?.shift_name === 'Weekly Off' ? 'Not Applicable' : 'Not Assigned')
+    };
+  });
+}
+
+function downloadExcel() {
+  const data = prepareExportData();
+  const ws = XLSX.utils.json_to_sheet(data);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, "Shifts");
+  
+  const monthName = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1)
+    .toLocaleString('default', { month: 'long' });
+  const fileName = `Shifts_${empId}_${monthName}_${currentDate.getFullYear()}.xlsx`;
+  
+  XLSX.writeFile(wb, fileName);
+}
+
+function downloadPdf() {
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF();
+  
+  const data = prepareExportData();
+  const headers = [["Employee ID", "Name", "Date", "Day", "Shift", "Shift Time", "Ward"]];
+  const rows = data.map(item => [
+    item["Employee ID"],
+    item["Name"],
+    item["Date"],
+    item["Day"],
+    item["Shift"],
+    item["Shift Time"],
+    item["Ward"]
+  ]);
+  
+  doc.autoTable({
+    head: headers,
+    body: rows,
+    startY: 20,
+    theme: 'grid',
+    headStyles: {
+      fillColor: [41, 128, 185],
+      textColor: 255,
+      fontStyle: 'bold'
+    },
+    alternateRowStyles: {
+      fillColor: [245, 245, 245]
+    }
+  });
+  
+ doc.setFontSize(14);
+
+const monthName = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1)
+  .toLocaleString('default', { month: 'long' });
+
+doc.text(`Shift Details - ${empId} ${monthName} ${currentDate.getFullYear()}`, 14, 15);
+
+doc.save(`Shifts_${empId}_${monthName}_${currentDate.getFullYear()}.pdf`);
+}
+
+
+
+
+
+  </script>
+</body>
+</html>

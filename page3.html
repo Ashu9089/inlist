@@ -1,0 +1,493 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>User Attandance</title>
+  <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet"/>
+   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+  <script src="https://cdn.sheetjs.com/xlsx-0.19.3/package/dist/xlsx.full.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
+  <style>
+.miss-punch-approved { background-color: #10B981 !important; } /* Green */
+    .miss-punch-rejected { background-color: #EF4444 !important; } /* Red */
+    .miss-punch-pending { background-color: #9333EA !important; } /* Purple */
+    .attendance-present { background-color: #14532d; }
+    .attendance-absent { background-color: #EF4444; }
+    .attendance-late { background-color: #f59e0b; }
+    .attendance-left-early { background-color: #6B7280; }
+
+    .calendar-cell {
+      width: 40px;
+      height: 40px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 2px;
+      cursor: pointer;
+      border-radius: 8px;
+      font-weight: bold;
+    }
+
+ .current-date {
+    border: 2px solid #000 !important;
+    box-sizing: border-box;
+  }
+  </style>
+</head>
+<body class="bg-gray-50">
+
+ <header class="bg-blue-600 text-white p-4 sticky top-0 shadow-lg">
+    <div class="flex justify-between items-center">
+      <button onclick="window.history.back()" class="text-xl">←</button>
+      <span id="empLabel" class="font-bold">EMP002</span>
+    </div>
+  </header>
+
+  <!-- Stats Grid -->
+  <div class="p-4 bg-white shadow">
+    <div class="grid grid-cols-4 gap-4 text-center mb-4">
+      <div class="p-2 bg-green-100 rounded">
+        <p class="text-xs text-gray-600">Present</p>
+        <p class="font-bold text-xl" id="presentCount">0</p>
+      </div>
+      <div class="p-2 bg-red-100 rounded">
+        <p class="text-xs text-gray-600">Absent</p>
+        <p class="font-bold text-xl" id="absentCount">0</p>
+      </div>
+      <div class="p-2 bg-yellow-100 rounded">
+        <p class="text-xs text-gray-600">Late</p>
+        <p class="font-bold text-xl" id="lateCount">0</p>
+      </div>
+      <div class="p-2 bg-gray-100 rounded">
+        <p class="text-xs text-gray-600">Left Early</p>
+        <p class="font-bold text-xl" id="leftEarlyCount">0</p>
+      </div>
+    </div>
+
+    <!-- Date Controls -->
+     <div class="flex gap-2 mb-4">
+      <select id="monthSelect" class="p-2 border rounded flex-grow"></select>
+      <select id="yearSelect" class="p-2 border rounded flex-grow"></select>
+     <button id="resetDate" class="p-2 bg-blue-600 text-white rounded hidden">Reset</button>
+
+    </div>
+
+   
+  <!-- Calendar Grid -->
+  <div class="p-4">
+    <div class="grid grid-cols-7 gap-1 mb-2 text-center text-sm font-medium">
+      <div>Sun</div><div>Mon</div><div>Tue</div><div>Wed</div><div>Thu</div><div>Fri</div><div>Sat</div>
+    </div>
+    <div id="calendar" class="grid grid-cols-7 gap-1"></div>
+  </div>
+
+  <!-- Attendance Modal -->
+<div id="attendanceModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center p-4">
+  <div class="bg-white rounded-lg p-6 w-full max-w-sm">
+    <h3 class="text-lg font-semibold mb-4">Update Attendance</h3>
+    
+    <!-- यहाँ नया element जोड़ा गया है -->
+    <p id="selectedDate" class="text-sm text-gray-600 mb-3"></p>
+    
+    <div class="space-y-4">
+      <div>
+        <label class="block text-sm font-medium mb-1">Date</label>
+        <input type="date" id="attendanceDate" class="w-full p-2 border rounded" disabled>
+      </div>
+      <div>
+        <label class="block text-sm font-medium mb-1">Status</label>
+        <select id="attendanceStatus" class="w-full p-2 border rounded">
+          <option value="Present">Present</option>
+          <option value="Absent">Absent</option>
+          <option value="Late">Late</option>
+          <option value="Left Early">Left Early</option>
+        </select>
+      </div>
+      <div class="flex gap-2 justify-end">
+           <button onclick="closeAttendanceModal()" class="px-4 py-2 bg-gray-200 rounded">Cancel</button>
+        <button onclick="saveAttendance()" class="px-4 py-2 bg-blue-600 text-white rounded">Save</button>
+      </div>
+    </div>
+  </div>
+</div>
+<div id="missPunchModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center p-4">
+    <div class="bg-white rounded-lg p-6 w-full max-w-sm">
+      <h3 class="text-lg font-semibold mb-4">Report Missed Punch</h3>
+      <p id="selectedDate" class="text-sm text-gray-600 mb-3"></p>
+      <div class="space-y-4">
+        <div>
+          <label class="block text-sm font-medium mb-1">Reason</label>
+          <textarea id="missPunchReason" class="w-full p-2 border rounded" rows="4"></textarea>
+        </div>
+        <div class="flex gap-2 justify-end">
+          <button onclick="closeMissPunchModal()" class="px-4 py-2 bg-gray-200 rounded">Cancel</button>
+          <button onclick="saveMissPunch()" class="px-4 py-2 bg-blue-600 text-white rounded">Submit</button>
+        </div>
+      </div>
+    </div>
+  </div>
+<script>
+const getLocalDateString = (dateString) => {
+  const date = new Date(dateString + 'T00:00:00Z');
+  return date.toLocaleDateString('en-IN', {
+    timeZone: 'Asia/Kolkata',
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric'
+  });
+};
+
+const createUTCDate = (year, month, day) => 
+  new Date(Date.UTC(year, month, day));
+
+// Supabase initialization
+const supabase = window.supabase.createClient(
+  'https://nqbrepbtcacdvatfcqrz.supabase.co',
+  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5xYnJlcGJ0Y2FjZHZhdGZjcXJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDU5MjgyOTIsImV4cCI6MjA2MTUwNDI5Mn0.2-IdK9Jh3Can-KT2rVUm8SMUt-7BL9OL58unLBtM9AM'
+);
+
+let userData = {};
+let attendanceData = [];
+let reportedMissPunches = []; 
+const empId = "EMP002";
+let currentDate = createUTCDate(
+  new Date().getUTCFullYear(),
+  new Date().getUTCMonth(),
+  1
+);
+
+// Event Listeners
+document.addEventListener('DOMContentLoaded', async () => {
+  await loadUserData();
+  updateEmployeeHeader();
+  await initializeDateControls();
+  await loadData();
+});
+
+function isCurrentMonthYear() {
+  const current = new Date();
+  return (
+    parseInt(document.getElementById('monthSelect').value) === current.getUTCMonth() &&
+    parseInt(document.getElementById('yearSelect').value) === current.getUTCFullYear()
+  );
+}
+
+// नया फंक्शन: Reset बटन की visibility अपडेट करे
+function updateResetButtonVisibility() {
+  const resetBtn = document.getElementById('resetDate');
+  resetBtn.classList.toggle('hidden', isCurrentMonthYear());
+}
+
+// Date controls में बदलाव सुनें
+document.getElementById('monthSelect').addEventListener('change', () => {
+  updateResetButtonVisibility();
+  loadData();
+});
+
+document.getElementById('yearSelect').addEventListener('change', () => {
+  updateResetButtonVisibility();
+  loadData();
+});
+
+// Reset बटन का हैंडलर
+document.getElementById('resetDate').addEventListener('click', () => {
+  const current = new Date();
+  document.getElementById('monthSelect').value = current.getUTCMonth();
+  document.getElementById('yearSelect').value = current.getUTCFullYear();
+  currentDate = createUTCDate(current.getUTCFullYear(), current.getUTCMonth(), 1);
+  updateResetButtonVisibility();
+  loadData();
+});
+
+
+// Date Controls
+async function initializeDateControls() {
+  const monthSelect = document.getElementById('monthSelect');
+  const yearSelect = document.getElementById('yearSelect');
+  
+  // Populate months
+  const formatter = new Intl.DateTimeFormat('en-US', { 
+    month: 'short', 
+    timeZone: 'UTC' 
+  });
+  Array.from({length: 12}).forEach((_,i) => {
+    const date = createUTCDate(2023, i, 1);
+    monthSelect.innerHTML += `<option value="${i}">${formatter.format(date)}</option>`;
+  });
+
+  // Populate years
+  const currentYear = new Date().getUTCFullYear();
+  for(let y=currentYear-2; y<=currentYear+2; y++) {
+    yearSelect.innerHTML += `<option value="${y}">${y}</option>`;
+  }
+
+  // Set initial values
+  monthSelect.value = currentDate.getUTCMonth();
+  yearSelect.value = currentDate.getUTCFullYear();
+
+  // Event handlers
+  const updateDate = () => {
+    currentDate = createUTCDate(
+      parseInt(yearSelect.value),
+      parseInt(monthSelect.value),
+      1
+    );
+    loadData();
+  };
+  
+  monthSelect.addEventListener('change', updateDate);
+  yearSelect.addEventListener('change', updateDate);
+}
+
+// User Data Handling
+async function loadUserData() {
+  try {
+    const { data, error } = await supabase
+      .from('users')
+      .select('name, department')
+      .eq('emp_id', empId)
+      .single();
+
+    if (error) throw error;
+    userData = data;
+  } catch (error) {
+    console.error('Error loading user data:', error);
+    userData = {};
+  }
+}
+
+function updateEmployeeHeader() {
+  const empLabel = document.getElementById('empLabel');
+  empLabel.textContent = userData.name ? 
+    `${userData.name} (${empId})` : 
+    empId;
+}
+
+// Attendance Data
+
+async function loadData() {
+  const start = createUTCDate(
+    currentDate.getUTCFullYear(),
+    currentDate.getUTCMonth(),
+    1
+  );
+  
+  const end = createUTCDate(
+    currentDate.getUTCFullYear(),
+    currentDate.getUTCMonth() + 1,
+    0
+  );
+
+   try {
+        const [attendanceRes, missPunchRes] = await Promise.all([
+          supabase
+            .from('attendance')
+            .select('date, status, punch_in, punch_out')
+            .eq('emp_id', empId)
+            .gte('date', start.toISOString().split('T')[0])
+            .lte('date', end.toISOString().split('T')[0]),
+          
+          supabase
+            .from('miss_punch')
+            .select('date, status')
+            .eq('emp_id', empId)
+            .gte('date', start.toISOString().split('T')[0])
+            .lte('date', end.toISOString().split('T')[0])
+        ]);
+
+        // ... existing error handling ...
+
+        attendanceData = attendanceRes.data;
+        
+        // Store miss punch reports with status
+        reportedMissPunches = {};
+        missPunchRes.data.forEach(report => {
+          reportedMissPunches[report.date] = report.status;
+        });
+        
+        renderCalendar();
+        updateStats();
+      } catch (error) {
+        console.error('Error:', error);
+        alert('Data load failed');
+      }
+    }
+
+// Calendar Rendering
+function renderCalendar() {
+  const calendar = document.getElementById('calendar');
+  calendar.innerHTML = '';
+  
+  const year = currentDate.getUTCFullYear();
+  const month = currentDate.getUTCMonth();
+  const today = new Date();
+  
+  const firstDay = createUTCDate(year, month, 1).getUTCDay();
+  const daysInMonth = createUTCDate(year, month + 1, 0).getUTCDate();
+
+  calendar.innerHTML = Array(firstDay).fill('<div class="calendar-cell"></div>').join('');
+
+  for(let day=1; day<=daysInMonth; day++) {
+    const date = createUTCDate(year, month, day);
+    const dateString = date.toISOString().split('T')[0];
+    const attendance = attendanceData.find(a => a.date === dateString);
+    const missPunchStatus = reportedMissPunches[dateString];
+    const isToday = date.toISOString().split('T')[0] === 
+                   today.toISOString().split('T')[0];
+
+    const cell = document.createElement('div');
+    cell.className = `calendar-cell 
+      ${isToday ? 'current-date' : ''}
+      ${attendance ? `attendance-${attendance.status.toLowerCase().replace(' ','-')}` : ''}`;
+      
+    cell.textContent = day;
+    
+   // Apply attendance class first
+        if (attendance) {
+          cell.classList.add(`attendance-${attendance.status.toLowerCase().replace(' ','-')}`);
+        }
+        
+        // Apply miss punch status only if not approved
+        if (missPunchStatus && missPunchStatus !== 'approved') {
+          cell.classList.add(`miss-punch-${missPunchStatus.toLowerCase()}`);
+          
+          // Set tooltip based on status
+          if (missPunchStatus === 'rejected') {
+            cell.title = 'Miss punch rejected';
+          } else {
+            cell.title = 'Miss punch pending';
+          }
+        } else if (attendance) {
+          cell.title = `Attendance: ${attendance.status}`;
+        }
+        
+        // Handle cell click based on attendance status
+        cell.onclick = () => {
+          // Only show miss punch modal for non-present statuses
+          const validStatuses = ['Absent', 'Late', 'Left Early'];
+          
+          if (!attendance || !validStatuses.includes(attendance.status)) {
+            alert('Miss punch can only be reported for Absent, Late, or Left Early status');
+            return;
+          }
+          
+          // Approved - no action
+          if (missPunchStatus === 'approved') {
+            alert('Miss punch already approved for this date');
+            return;
+          }
+          
+          // Rejected - allow reporting again
+          if (missPunchStatus === 'rejected') {
+            openMissPunchModal(dateString);
+            return;
+          }
+          
+          // Pending - show message
+          if (missPunchStatus === 'pending') {
+            alert('Miss punch report is pending approval');
+            return;
+          }
+          
+          // No existing report - allow reporting
+          openMissPunchModal(dateString);
+        }
+        
+        calendar.appendChild(cell);
+      }
+    }
+
+
+
+// Miss Punch Handling
+let selectedMissPunchDate = null;
+
+function openMissPunchModal(dateString) {
+  const modal = document.getElementById('missPunchModal');
+  selectedMissPunchDate = dateString;
+  document.getElementById('selectedDate').textContent = getLocalDateString(dateString);
+  document.getElementById('missPunchReason').value = '';
+  modal.classList.remove('hidden');
+}
+
+function closeMissPunchModal() {
+  document.getElementById('missPunchModal').classList.add('hidden');
+}
+async function saveMissPunch() {
+  const reason = document.getElementById('missPunchReason').value.trim();
+  
+  if(!reason) {
+    alert('Please enter reason');
+    return;
+  }
+
+  try {
+    // Check if already reported
+    if (reportedMissPunches[selectedMissPunchDate]) {
+      // Update existing record if status is rejected
+      if (reportedMissPunches[selectedMissPunchDate] === 'rejected') {
+        const { error } = await supabase
+          .from('miss_punch')
+          .update({ reason, status: 'pending' })
+          .eq('emp_id', empId)
+          .eq('date', selectedMissPunchDate);
+          
+        if (error) throw error;
+      } else {
+        alert('Already reported');
+        return;
+      }
+    } else {
+      // Create new record
+      const { error } = await supabase
+        .from('miss_punch')
+        .insert([{
+          emp_id: empId,
+          date: selectedMissPunchDate,
+          reason: reason,
+          status: 'pending',
+          created_at: new Date().toISOString()
+        }]);
+
+      if (error) throw error;
+    }
+    
+    // Update local state and re-render
+    reportedMissPunches[selectedMissPunchDate] = 'pending';
+    renderCalendar();
+    
+    alert('Success!');
+    closeMissPunchModal();
+  } catch (error) {
+    console.error('Error:', error);
+    alert('Report failed');
+  }
+}
+// Stats Update
+function updateStats() {
+  const stats = {
+    Present: 0,
+    Absent: 0,
+    Late: 0,
+    'Left Early': 0
+  };
+
+  attendanceData.forEach(record => {
+    stats[record.status]++;
+  });
+
+  document.getElementById('presentCount').textContent = stats.Present;
+  document.getElementById('absentCount').textContent = stats.Absent;
+  document.getElementById('lateCount').textContent = stats.Late;
+  document.getElementById('leftEarlyCount').textContent = stats['Left Early'];
+}
+
+
+</script>
+
+</body>
+</html> 

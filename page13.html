@@ -1,0 +1,433 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Add New Staff Member</title>
+<style>
+  * {
+    box-sizing: border-box;
+  }
+  body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background: #f0f2f5;
+    margin: 0;
+    color: #333;
+  }
+  header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: white;
+    padding: 12px 20px;
+    box-shadow: 0 2px 8px rgb(0 0 0 / 0.1);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+  .back-arrow {
+    font-size: 24px;
+    cursor: pointer;
+    color: #4361ee;
+    user-select: none;
+    display: flex;
+    align-items: center;
+  }
+  .page-title {
+    font-size: 18px;
+    font-weight: 600;
+    color: #222;
+    text-align: center;
+    flex-grow: 1;
+  }
+  .emp-id {
+    font-size: 14px;
+    color: #666;
+    font-weight: 500;
+    min-width: 80px;
+    text-align: right;
+  }
+  .container {
+    max-width: 480px;
+    margin: 30px auto 60px;
+    background: white;
+    padding: 25px 30px;
+    border-radius: 12px;
+    box-shadow: 0 6px 16px rgb(0 0 0 / 0.08);
+  }
+  form {
+    display: flex;
+    flex-direction: column;
+  }
+  label {
+    font-weight: 600;
+    margin-bottom: 6px;
+    color: #444;
+  }
+  input, select {
+    padding: 10px 14px;
+    margin-bottom: 18px;
+    border: 1.8px solid #ccc;
+    border-radius: 8px;
+    font-size: 16px;
+    transition: border-color 0.3s;
+  }
+  input:focus, select:focus {
+    outline: none;
+    border-color: #4361ee;
+    box-shadow: 0 0 8px rgba(67, 97, 238, 0.3);
+  }
+  input[type="file"] {
+    padding: 3px 5px;
+    font-size: 14px;
+  }
+  .avatar-container {
+    text-align: center;
+    margin-bottom: 25px;
+  }
+  .avatar-preview {
+    width: 110px;
+    height: 110px;
+    margin: 0 auto 10px;
+    border-radius: 50%;
+    overflow: hidden;
+    border: 3px solid #4361ee;
+    background: #ddd url('https://cdn-icons-png.flaticon.com/512/149/149071.png') center/cover no-repeat;
+  }
+  .avatar-preview img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+  .upload-label {
+    display: inline-block;
+    background: #4361ee;
+    color: white;
+    padding: 8px 15px;
+    border-radius: 25px;
+    font-size: 14px;
+    cursor: pointer;
+    user-select: none;
+    transition: background 0.3s;
+  }
+  .upload-label:hover {
+    background: #3452c7;
+  }
+  input[type="file"] {
+    display: none;
+  }
+
+  /* Password + button wrapper */
+  .password-wrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+  }
+  .password-wrapper input[type="password"] {
+    flex-grow: 1;
+    margin-bottom: 18px;
+    border-radius: 8px 0 0 8px;
+    border-right: none;
+  }
+  .password-wrapper button {
+    background: #4361ee;
+    border: none;
+    color: white;
+    padding: 10px 14px;
+    font-weight: 600;
+    font-size: 14px;
+    cursor: pointer;
+    border-radius: 0 8px 8px 0;
+    transition: background 0.3s;
+    margin-bottom: 18px;
+  }
+  .password-wrapper button:hover {
+    background: #3452c7;
+  }
+  
+  button[type="submit"] {
+    background: #4361ee;
+    border: none;
+    padding: 12px;
+    color: white;
+    font-size: 16px;
+    font-weight: 600;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background 0.3s;
+    margin-top: 10px;
+  }
+  button[type="submit"]:hover {
+    background: #3452c7;
+  }
+  
+  /* Error message styling */
+  .error-message {
+    color: #e63946;
+    font-size: 13px;
+    margin-top: -15px;
+    margin-bottom: 15px;
+    display: none;
+  }
+  
+  @media (max-width: 520px) {
+    .container {
+      margin: 15px 12px 40px;
+      padding: 20px 20px;
+    }
+    .page-title {
+      font-size: 16px;
+    }
+    .emp-id {
+      min-width: 70px;
+      font-size: 13px;
+    }
+  }
+</style>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+
+</head>
+<body>
+
+<header>
+  <div class="back-arrow" title="Go Back" onclick="history.back()">
+    &#8592;
+  </div>
+  <div class="page-title">Add New Staff Member</div>
+  <div class="emp-id" id="headerEmpId">Emp ID: -</div>
+</header>
+
+<main>
+  <div class="container">
+    <form id="staffForm" novalidate>
+      <div class="avatar-container">
+        <div class="avatar-preview" id="avatarPreview"></div>
+        <label for="avatarUpload" class="upload-label">Upload Photo</label>
+        <input type="file" id="avatarUpload" accept="image/*" />
+      </div>
+
+      <label for="empId">Employee ID <span style="color:#e63946;">*</span></label>
+      <input type="text" id="empId" name="empId" required placeholder="Enter employee ID" />
+      <div id="empIdError" class="error-message">This Employee ID already exists</div>
+
+      <label for="firstName">First Name <span style="color:#e63946;">*</span></label>
+      <input type="text" id="firstName" name="firstName" required placeholder="Enter first name" />
+
+      <label for="lastName">Last Name</label>
+      <input type="text" id="lastName" name="lastName" placeholder="Enter last name" />
+
+      <label for="personal_contact">Mobile Number <span style="color:#e63946;">*</span></label>
+      <input type="tel" id="mobile" name="mobile" required placeholder="+91 9876543210" pattern="^\+?\d{10,15}$" />
+      
+      <label for="email">Email ID <span style="color:#e63946;">*</span></label>
+      <input type="email" id="email" name="email" required placeholder="Enter email address" />
+
+      <label for="department">Department <span style="color:#e63946;">*</span></label>
+      <input type="text" id="department" name="department" required placeholder="Exp: Nursing" />
+
+      <!-- New field: Designation -->
+      <label for="designation">Designation <span style="color:#e63946;">*</span></label>
+      <input type="text" id="designation" name="designation" required placeholder="Exp: Staff Nurse" />
+
+      <!-- New field: Address -->
+      <label for="address">Address <span style="color:#e63946;">*</span></label>
+      <input type="text" id="address" name="address" required placeholder="Enter full address" />
+
+      <label for="role">User Role <span style="color:#e63946;">*</span></label>
+      <select id="role" name="role" required>
+        <option value="" disabled selected>Select role</option>
+        <option value="Admin">Admin</option>
+        <option value="User">User</option>
+      </select>
+
+      <label for="password">Password <span style="color:#e63946;">*</span></label>
+      <div class="password-wrapper">
+        <input type="password" id="password" name="password" required minlength="6" placeholder="Enter password" />
+        <button type="button" id="copyNameBtn" title="Use First Name + 123">Use Name+123</button>
+      </div>
+
+      <button type="submit">Add Staff Member</button>
+    </form>
+  </div>
+</main>
+
+<script>
+  const SUPABASE_URL = 'https://nqbrepbtcacdvatfcqrz.supabase.co';
+  const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5xYnJlcGJ0Y2FjZHZhdGZjcXJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDU5MjgyOTIsImV4cCI6MjA2MTUwNDI5Mn0.2-IdK9Jh3Can-KT2rVUm8SMUt-7BL9OL58unLBtM9AM';
+  const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+  const avatarUpload = document.getElementById('avatarUpload');
+  const avatarPreview = document.getElementById('avatarPreview');
+  const firstNameInput = document.getElementById('firstName');
+  const lastNameInput = document.getElementById('lastName');
+  const passwordInput = document.getElementById('password');
+  const copyNameBtn = document.getElementById('copyNameBtn');
+  const form = document.getElementById('staffForm');
+  const empIdInput = document.getElementById('empId');
+  const empIdError = document.getElementById('empIdError');
+  const headerEmpId = document.getElementById('headerEmpId');
+  const submitBtn = form.querySelector('button[type="submit"]');
+
+  let avatarFile = null;
+  const demoAvatarUrl = "https://cdn-icons-png.flaticon.com/512/149/149071.png";
+
+  // Check if employee ID already exists
+  async function checkEmpIdExists(empId) {
+    if (!empId) return false;
+    
+    const { data, error } = await supabase
+      .from('users')
+      .select('emp_id')
+      .eq('emp_id', empId)
+      .maybeSingle();
+
+    if (error) {
+      console.error('Error checking employee ID:', error);
+      return false;
+    }
+    
+    return !!data;
+  }
+
+  // Validate employee ID on input change
+  empIdInput.addEventListener('blur', async () => {
+    const empId = empIdInput.value.trim();
+    if (!empId) return;
+    
+    const exists = await checkEmpIdExists(empId);
+    if (exists) {
+      empIdError.style.display = 'block';
+      empIdInput.style.borderColor = '#e63946';
+    } else {
+      empIdError.style.display = 'none';
+      empIdInput.style.borderColor = '#ccc';
+    }
+  });
+
+  avatarUpload.addEventListener('change', e => {
+    const file = e.target.files[0];
+    if (!file || !file.type.startsWith('image/')) {
+      alert('Please upload a valid image file.');
+      avatarUpload.value = '';
+      return;
+    }
+    avatarFile = file;
+    const reader = new FileReader();
+    reader.onload = () => {
+      avatarPreview.style.backgroundImage = `url(${reader.result})`;
+    };
+    reader.readAsDataURL(file);
+  });
+
+  copyNameBtn.addEventListener('click', () => {
+    const name = firstNameInput.value.trim();
+    if (!name) return alert("Enter first name first");
+    passwordInput.value = name + "123";
+  });
+
+  empIdInput.addEventListener('input', () => {
+    const empId = empIdInput.value.trim();
+    headerEmpId.textContent = empId ? `Emp ID: ${empId}` : "Emp ID: -";
+    
+    // Reset error state when typing
+    if (empIdError.style.display === 'block') {
+      empIdError.style.display = 'none';
+      empIdInput.style.borderColor = '#ccc';
+    }
+  });
+
+  async function uploadAvatar(empId) {
+    if (!avatarFile) return demoAvatarUrl;
+    const fileExt = avatarFile.name.split('.').pop();
+    const fileName = `${empId}_${Date.now()}.${fileExt}`;
+    const filePath = `${fileName}`;
+
+    let { error: uploadError } = await supabase.storage
+      .from('avatars')
+      .upload(filePath, avatarFile);
+
+    if (uploadError) {
+      console.error(uploadError);
+      return demoAvatarUrl;
+    }
+
+    const { data } = supabase.storage
+      .from('avatars')
+      .getPublicUrl(filePath);
+    return data.publicUrl || demoAvatarUrl;
+  }
+
+  form.addEventListener('submit', async e => {
+    e.preventDefault();
+    
+    // Check form validity
+    if (!form.checkValidity()) {
+      alert("Please fill all required fields correctly.");
+      return;
+    }
+    
+    // Check if employee ID exists
+    const empId = empIdInput.value.trim();
+    const exists = await checkEmpIdExists(empId);
+    if (exists) {
+      empIdError.style.display = 'block';
+      empIdInput.style.borderColor = '#e63946';
+      empIdInput.focus();
+      alert("This Employee ID already exists. Please use a different ID.");
+      return;
+    }
+
+    submitBtn.disabled = true;
+    submitBtn.textContent = "Submitting...";
+
+    const firstName = firstNameInput.value.trim();
+    const lastName = lastNameInput.value.trim();
+    const fullName = `${firstName} ${lastName}`.trim();
+    const mobile = document.getElementById('mobile').value.trim();
+    const email = document.getElementById('email').value.trim();
+    const password = passwordInput.value.trim();
+    const role = document.getElementById('role').value;
+    const department = document.getElementById('department')?.value?.trim() || "";
+    const designation = document.getElementById('designation')?.value?.trim() || "";
+    const address = document.getElementById('address')?.value?.trim() || "";
+
+    try {
+      const avatarUrl = await uploadAvatar(empId);
+
+      const { error } = await supabase.from('users').insert([{
+        emp_id: empId,
+        name: fullName,
+        personal_contact: mobile,
+        email: email,
+        password: password,
+        user_profile_url: avatarUrl,
+        before_profile_url: "",
+        address: address,
+        type: role,
+        department: department,
+        designation: designation
+      }]);
+
+      if (error) throw error;
+
+      alert("Staff member added successfully!");
+      form.reset();
+      avatarPreview.style.backgroundImage = `url('${demoAvatarUrl}')`;
+      headerEmpId.textContent = "Emp ID: -";
+      empIdError.style.display = 'none';
+      empIdInput.style.borderColor = '#ccc';
+    } catch (err) {
+      alert("Error: " + err.message);
+    } finally {
+      submitBtn.disabled = false;
+      submitBtn.textContent = "Add Staff Member";
+    }
+  });
+
+  window.onload = () => {
+    avatarPreview.style.backgroundImage = `url('${demoAvatarUrl}')`;
+  };
+</script>
+
+</body>
+</html>

@@ -1,0 +1,844 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hospital Duty Roster</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
+    <style>
+        :root {
+            --primary-color: #2c3e50;
+            --secondary-color: #3498db;
+            --success-color: #27ae60;
+            --danger-color: #e74c3c;
+            --light-color: #ecf0f1;
+            --dark-color: #2c3e50;
+        }
+        
+        * {
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        body {
+            margin: 0;
+            padding: 15px;
+            background-color: #f5f7fa;
+        }
+        
+        .container {
+            max-width: 100%;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            padding: 20px;
+            margin: 0 auto;
+        }
+        
+        h1 {
+            color: var(--primary-color);
+            text-align: center;
+            margin-bottom: 25px;
+            font-size: 1.8rem;
+        }
+        
+        .date-selector {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 25px;
+        }
+        
+        .date-selector input {
+            padding: 10px 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 1rem;
+            text-align: center;
+        }
+        
+        /* Virtual Scroll Styles */
+        .virtual-scroll-container {
+            height: 500px;
+            overflow-y: auto;
+            position: relative;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            margin-bottom: 20px;
+        }
+        
+        .virtual-scroll-content {
+            position: relative;
+            width: 100%;
+        }
+        
+        .virtual-item {
+            position: absolute;
+            width: 100%;
+            left: 0;
+            box-sizing: border-box;
+        }
+        
+        .scroll-placeholder {
+            height: 1px;
+            visibility: hidden;
+        }
+        
+        #rosterTable {
+            min-width: 100%;
+            width: auto;
+            border-collapse: collapse;
+        }
+        
+        #rosterTable thead {
+            position: sticky;
+            top: 0;
+            background-color: var(--primary-color);
+            color: white;
+            z-index: 10;
+        }
+        
+        th, td {
+            border: 1px solid #ddd;
+            padding: 12px;
+            text-align: center;
+            white-space: nowrap;
+        }
+        
+        tr:nth-child(even) {
+            background-color: #f9f9f9;
+        }
+        
+        .shift-options {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+        }
+        
+        .ward-selector {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        
+        /* Checkbox styling */
+        input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            accent-color: var(--primary-color);
+        }
+
+        .search-container {
+            position: relative;
+            width: 320px;
+            margin: 0 auto 20px;
+        }
+
+        .search-container input[type="text"] {
+            width: 100%;
+            padding: 12px 40px 12px 16px;
+            border: 1px solid #ddd;
+            border-radius: 30px;
+            font-size: 15px;
+            outline: none;
+            background-color: #fff;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.04);
+            transition: all 0.3s ease;
+        }
+
+        .search-container input[type="text"]:focus {
+            border-color: #2e8bff;
+            box-shadow: 0 0 0 3px rgba(46, 139, 255, 0.2);
+        }
+
+        .search-container .search-icon {
+            position: absolute;
+            right: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #888;
+            font-size: 18px;
+            pointer-events: none;
+        }
+
+        #downloadPdfBtn {
+            background-color: #2e8bff;
+            color: #fff;
+            border: none;
+            padding: 12px 24px;
+            font-size: 15px;
+            border-radius: 30px;
+            cursor: pointer;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            transition: background-color 0.3s ease, transform 0.2s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        #downloadPdfBtn:hover {
+            background-color: #1c6ed6;
+            transform: translateY(-2px);
+        }
+
+        .action-buttons {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            margin-top: 25px;
+            flex-wrap: wrap;
+        }
+        
+        .btn {
+            padding: 12px 25px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .btn-save {
+            background-color: var(--success-color);
+            color: white;
+        }
+        
+        .btn-reset {
+            background-color: var(--secondary-color);
+            color: white;
+        }
+        
+        @media (max-width: 768px) {
+            th, td {
+                padding: 8px;
+                font-size: 0.85rem;
+            }
+            
+            .btn {
+                padding: 10px 15px;
+                font-size: 0.9rem;
+            }
+        }
+
+        #rosterTable {
+            width: 100%;
+            table-layout: fixed;
+            border-collapse: separate;
+            border-spacing: 0;
+        }
+
+        #rosterTable th {
+            position: sticky;
+            top: 0;
+            background: #2c3e50;
+            color: white;
+            z-index: 10;
+            padding: 12px;
+            text-align: left;
+        }
+
+        #rosterTable td {
+            padding: 12px;
+            border-bottom: 1px solid #ddd;
+            vertical-align: middle;
+        }
+
+        .employee-info {
+            display: flex;
+            flex-direction: column;
+        }
+        .employee-info strong {
+            font-weight: 600;
+            color: #2c3e50;
+        }
+        .employee-info small {
+            color: #666;
+            font-size: 0.8em;
+            margin-top: 4px;
+        }
+
+        .shift-options {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            justify-content: center;
+        }
+
+        .shift-options label {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            cursor: pointer;
+            white-space: nowrap;
+        }
+
+        .ward-dropdown {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            background: white;
+        }
+
+        /* Virtual scroll adjustments */
+        .virtual-item {
+            position: absolute;
+            width: 100%;
+            left: 0;
+            background: white;
+            display: table-row;
+        }
+
+        .virtual-item:hover {
+            background-color: #f5f7fa;
+        }
+
+
+.emp-header {
+      background-color: #2563eb;
+      color: white;
+      padding: 12px 16px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    .back-arrow {
+      font-size: 20px;
+      cursor: pointer;
+    }
+    .header-title {
+      font-size: 18px;
+      font-weight: 600;
+      margin: 0;
+    }
+    .emp-id {
+      font-size: 14px;
+      font-weight: bold;
+    }
+    </style>
+</head>
+<body>
+<!-- Header -->
+  <header class="emp-header">
+    <span class="back-arrow" onclick="window.history.back()">←</span>
+    <h1 class="header-title">Roster</h1>
+    <span id="empLabel" class="emp-id">EMP001</span>
+  </header>
+    <div class="container">
+        
+        <div class="date-selector">
+            <input type="date" id="rosterDate" name="rosterDate">
+        </div>
+        
+        <div class="search-container">
+            <input type="text" id="searchInput" placeholder="Search by Name or ID">
+            <span class="search-icon">🔍</span>
+        </div>
+
+        <div class="virtual-scroll-container" id="virtualScrollContainer">
+            <table id="rosterTable">
+                <thead>
+                    <tr>
+                        <th>Employee</th>
+                        <th>Shift</th>
+                        <th>Ward</th>
+                    </tr>
+                </thead>
+                <tbody id="virtualScrollContent"></tbody>
+            </table>
+            <div class="scroll-placeholder" id="scrollPlaceholder"></div>
+        </div>
+        
+        <div class="action-buttons">
+            <button class="btn btn-save" id="saveBtn">
+                Save Roster
+            </button>
+            
+            <button id="downloadPdfBtn">Download PDF</button>
+                
+            <button class="btn btn-reset" id="resetBtn">
+                Reset
+            </button>
+        </div>
+    </div>
+
+    <script type="module">
+        import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm";
+
+        const supabaseUrl = "https://nqbrepbtcacdvatfcqrz.supabase.co";
+        const supabaseKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5xYnJlcGJ0Y2FjZHZhdGZjcXJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDU5MjgyOTIsImV4cCI6MjA2MTUwNDI5Mn0.2-IdK9Jh3Can-KT2rVUm8SMUt-7BL9OL58unLBtM9AM";
+        const supabase = createClient(supabaseUrl, supabaseKey);
+
+        // Virtual scroll variables
+        const ITEM_HEIGHT = 60;
+        let visibleItems = [];
+        let allUsersData = [];
+        let filteredUsersData = [];
+        let userShiftData = {}; // To store checkbox and dropdown states
+
+        // DOM elements
+        const downloadBtn = document.getElementById("downloadPdfBtn");
+        const saveBtn = document.getElementById("saveBtn");
+        const resetBtn = document.getElementById("resetBtn");
+        const rosterDateInput = document.getElementById("rosterDate");
+        const searchInput = document.getElementById("searchInput");
+        const virtualScrollContainer = document.getElementById("virtualScrollContainer");
+        const virtualScrollContent = document.getElementById("virtualScrollContent");
+        const scrollPlaceholder = document.getElementById("scrollPlaceholder");
+
+        // Initialize user shift data
+        function initializeUserShiftData() {
+            allUsersData.forEach(user => {
+                if (!userShiftData[user.emp_id]) {
+                    userShiftData[user.emp_id] = {
+                        shifts: [],
+                        ward: ""
+                    };
+                }
+            });
+        }
+
+        // Virtual scroll update function
+        function updateVisibleItems() {
+            // Update placeholder height
+            scrollPlaceholder.style.height = `${filteredUsersData.length * ITEM_HEIGHT}px`;
+
+            // Clear existing rows
+            virtualScrollContent.innerHTML = "";
+
+            // Show no data message if empty
+            if (filteredUsersData.length === 0) {
+                const tr = document.createElement("tr");
+                tr.innerHTML = `<td colspan="3" style="text-align:center;padding:20px">No employees found</td>`;
+                virtualScrollContent.appendChild(tr);
+                return;
+            }
+
+            // Calculate visible items
+            const scrollTop = virtualScrollContainer.scrollTop;
+            const containerHeight = virtualScrollContainer.clientHeight;
+            const startIndex = Math.max(0, Math.floor(scrollTop / ITEM_HEIGHT) - 2);
+            const endIndex = Math.min(
+                startIndex + Math.ceil(containerHeight / ITEM_HEIGHT) + 4,
+                filteredUsersData.length
+            );
+
+            // Render visible items
+            for (let i = startIndex; i < endIndex; i++) {
+                const user = filteredUsersData[i];
+                const tr = document.createElement("tr");
+                tr.setAttribute("data-emp-id", user.emp_id);
+               
+                // Get saved shift and ward data for this user
+                const userData = userShiftData[user.emp_id] || { shifts: [], ward: "" };
+                
+                tr.innerHTML = `
+                    <td>
+                        <div>
+                            <strong>${user.name}</strong><br>
+                            <small>${user.emp_id}</small>
+                        </div>
+                    </td>
+                    <td>
+                        <div class="shift-options">
+                            <label><input type="checkbox" class="shift-checkbox" value="M" ${userData.shifts.includes("M") ? "checked" : ""}> M</label>
+                            <label><input type="checkbox" class="shift-checkbox" value="E" ${userData.shifts.includes("E") ? "checked" : ""}> E</label>
+                            <label><input type="checkbox" class="shift-checkbox" value="N" ${userData.shifts.includes("N") ? "checked" : ""}> N</label>
+                            <label><input type="checkbox" class="shift-checkbox" value="L" ${userData.shifts.includes("L") ? "checked" : ""}> L</label>
+                            <label><input type="checkbox" class="shift-checkbox" value="WO" ${userData.shifts.includes("WO") ? "checked" : ""}> WO</label>
+                        </div>
+                    </td>
+                    <td>
+                        <select class="ward-dropdown" ${userData.shifts.includes("L") || userData.shifts.includes("WO") ? "disabled" : ""} required>
+                            <option value="">-- Select --</option>
+                            <option value="ICU" ${userData.ward === "ICU" ? "selected" : ""}>ICU</option>
+                            <option value="NICU" ${userData.ward === "NICU" ? "selected" : ""}>NICU</option>
+                            <option value="G/W" ${userData.ward === "G/W" ? "selected" : ""}>G/W</option>
+                            <option value="OT" ${userData.ward === "OT" ? "selected" : ""}>OT</option>
+                            <option value="PRIVATE" ${userData.ward === "PRIVATE" ? "selected" : ""}>PRIVATE</option>
+                            <option value="DIALYSIS" ${userData.ward === "DIALYSIS" ? "selected" : ""}>DIALYSIS</option>
+                            <option value="EMR" ${userData.ward === "EMR" ? "selected" : ""}>EMR</option>
+                            <option value="EMR-ICU" ${userData.ward === "EMR-ICU" ? "selected" : ""}>EMR-ICU</option>
+                        </select>
+                    </td>
+                `;
+                virtualScrollContent.appendChild(tr);
+                
+                // Apply shift logic to the newly created row
+                applyShiftLogic(tr);
+            }
+        }
+
+        // Apply shift logic to a row
+        function applyShiftLogic(row) {
+            const shiftBoxes = Array.from(row.querySelectorAll(".shift-checkbox"));
+            const L = row.querySelector('input[value="L"]');
+            const WO = row.querySelector('input[value="WO"]');
+            const normalShifts = shiftBoxes.filter(cb => ["M", "E", "N"].includes(cb.value));
+            const wardDropdown = row.querySelector(".ward-dropdown");
+
+            // Initial state setup
+            if (L.checked || WO.checked) {
+                normalShifts.forEach(cb => { cb.checked = false; cb.disabled = true; });
+                wardDropdown.disabled = true;
+                wardDropdown.value = "";
+            } else {
+                normalShifts.forEach(cb => cb.disabled = false);
+                wardDropdown.disabled = false;
+            }
+
+            const selectedShifts = normalShifts.filter(cb => cb.checked);
+            if (selectedShifts.length >= 2) {
+                normalShifts.forEach(cb => {
+                    if (!cb.checked) cb.disabled = true;
+                });
+            }
+        }
+
+        // Load users from Supabase
+        async function loadUsers() {
+            const { data, error } = await supabase
+                .from("users")
+                .select("emp_id, name")
+                .eq("type", "User");
+
+            if (error) {
+                console.error("Error fetching users:", error);
+                return;
+            }
+
+            allUsersData = data;
+            filteredUsersData = [...data];
+            initializeUserShiftData();
+            updateVisibleItems();
+        }
+
+        // Search functionality
+        function handleSearch() {
+            const searchText = searchInput.value.toLowerCase();
+            filteredUsersData = allUsersData.filter(user => 
+                user.name.toLowerCase().includes(searchText) || 
+                user.emp_id.toLowerCase().includes(searchText)
+            );
+            updateVisibleItems();
+        }
+
+        // Shift checkbox logic
+        document.addEventListener("change", function(e) {
+            if (e.target.classList.contains("shift-checkbox")) {
+                const row = e.target.closest("tr");
+                const empId = row.getAttribute("data-emp-id");
+                const shiftBoxes = Array.from(row.querySelectorAll(".shift-checkbox"));
+                const selected = shiftBoxes.filter(cb => cb.checked).map(cb => cb.value);
+
+                // Save the current state
+                userShiftData[empId].shifts = selected;
+
+                const L = row.querySelector('input[value="L"]');
+                const WO = row.querySelector('input[value="WO"]');
+                const normalShifts = shiftBoxes.filter(cb => ["M", "E", "N"].includes(cb.value));
+                const wardDropdown = row.querySelector(".ward-dropdown");
+
+                if (L.checked || WO.checked) {
+                    normalShifts.forEach(cb => { cb.checked = false; cb.disabled = true; });
+                    wardDropdown.disabled = true;
+                    wardDropdown.value = "";
+                } else {
+                    normalShifts.forEach(cb => cb.disabled = false);
+                    wardDropdown.disabled = false;
+                }
+
+                if (selected.includes("L")) WO.checked = false;
+                if (selected.includes("WO")) L.checked = false;
+
+                const selectedShifts = normalShifts.filter(cb => cb.checked);
+                if (selectedShifts.length >= 2) {
+                    normalShifts.forEach(cb => {
+                        if (!cb.checked) cb.disabled = true;
+                    });
+                } else {
+                    if (!L.checked && !WO.checked) {
+                        normalShifts.forEach(cb => cb.disabled = false);
+                    }
+                }
+
+                // Update user shift data
+                userShiftData[empId].shifts = Array.from(row.querySelectorAll(".shift-checkbox:checked")).map(cb => cb.value);
+            }
+        });
+
+        // Ward dropdown change handler
+        document.addEventListener("change", function(e) {
+            if (e.target.classList.contains("ward-dropdown")) {
+                const row = e.target.closest("tr");
+                const empId = row.getAttribute("data-emp-id");
+                userShiftData[empId].ward = e.target.value;
+            }
+        });
+
+        // Check if shifts already exist for the date
+        async function checkExistingShifts(date) {
+            const { data, error } = await supabase
+                .from("shifts")
+                .select("*")
+                .eq("shift_date", date);
+
+            if (error) {
+                console.error("Error checking existing shifts:", error);
+                return { exists: false, data: [] };
+            }
+
+            return { exists: data.length > 0, data };
+        }
+
+        // Save roster to Supabase
+        async function saveRoster() {
+            const date = rosterDateInput.value;
+            if (!date) return alert("Please select a date");
+
+            // Check if shifts already exist for this date
+            const { exists: shiftsExist, data: existingShifts } = await checkExistingShifts(date);
+            
+            if (shiftsExist) {
+                // Check if the current roster is different from existing
+                const rows = document.querySelectorAll("#virtualScrollContent tr");
+                let hasChanges = false;
+                
+                for (const row of rows) {
+                    const empId = row.getAttribute("data-emp-id");
+                    const userData = userShiftData[empId] || { shifts: [], ward: "" };
+                    const existingShift = existingShifts.find(s => s.emp_id === empId);
+                    
+                    if (!existingShift) {
+                        hasChanges = true;
+                        break;
+                    }
+                    
+                    // Compare shifts
+                    const currentShifts = userData.shifts.sort().join(",");
+                    const existingShiftParts = existingShift.shift_name.split("+");
+                    const existingShiftsSorted = existingShiftParts.map(p => {
+                        if (p === "Morning") return "M";
+                        if (p === "Evening") return "E";
+                        if (p === "Night") return "N";
+                        if (p === "Leave") return "L";
+                        if (p === "WO") return "WO";
+                        return p;
+                    }).sort().join(",");
+                    
+                    if (currentShifts !== existingShiftsSorted || 
+                        (userData.ward !== existingShift.ward && !userData.shifts.includes("L") && !userData.shifts.includes("WO"))) {
+                        hasChanges = true;
+                        break;
+                    }
+                }
+                
+                if (!hasChanges) {
+                    return alert("No changes detected. Roster for this date is already saved with the same data.");
+                }
+                
+                if (!confirm("Shifts already exist for this date. Do you want to overwrite them?")) {
+                    return;
+                }
+                
+                // Delete existing shifts for this date
+                const { error: deleteError } = await supabase
+                    .from("shifts")
+                    .delete()
+                    .eq("shift_date", date);
+                
+                if (deleteError) {
+                    console.error("Error deleting existing shifts:", deleteError);
+                    return alert("Failed to delete existing shifts. Please try again.");
+                }
+            }
+
+            const rows = document.querySelectorAll("#virtualScrollContent tr");
+            let atLeastOneSaved = false;
+            const shiftNameMap = { M: "Morning", E: "Evening", N: "Night", L: "Leave", WO: "WO" };
+
+            for (const row of rows) {
+                const empId = row.getAttribute("data-emp-id");
+                const empName = row.cells[0].querySelector("strong")?.textContent.trim() || "";
+                const userData = userShiftData[empId] || { shifts: [], ward: "" };
+                const checkedShifts = userData.shifts;
+                const ward = userData.ward;
+
+                if (checkedShifts.length === 0) continue;
+
+                const onlyLeaveOrWO = checkedShifts.every(s => s === "L" || s === "WO");
+                const requiresWard = checkedShifts.some(s => s === "M" || s === "E" || s === "N");
+
+                if (requiresWard && !ward) {
+                    alert(`Please select ward for ${empName} (ID: ${empId}) having M/E/N shift.`);
+                    return;
+                }
+
+                const combinedShiftName = checkedShifts.map(s => shiftNameMap[s] || s).join("+");
+
+                let fromTimes = [];
+                let toTimes = [];
+
+                for (const shift_code of checkedShifts) {
+                    const { data, error } = await supabase
+                        .from("shiftime")
+                        .select("from_time, to_time")
+                        .eq("shift_name", shift_code)
+                        .single();
+
+                    if (error || !data) {
+                        console.warn(`Shift time not found for ${shift_code}`, error);
+                        continue;
+                    }
+                    fromTimes.push(data.from_time);
+                    toTimes.push(data.to_time);
+                }
+
+                if (fromTimes.length === 0 || toTimes.length === 0) {
+                    console.warn(`Skipping ${empId} due to missing shift times`);
+                    continue;
+                }
+
+                fromTimes.sort();
+                toTimes.sort();
+
+                const combinedShiftTime = `${fromTimes[0]} - ${toTimes[toTimes.length - 1]}`;
+
+                const { error: insertError } = await supabase.from("shifts").insert([{
+                    shift_date: date,
+                    shift_name: combinedShiftName,
+                    emp_id: empId,
+                    emp_name: empName,
+                    ward: onlyLeaveOrWO ? null : ward,
+                    shift_time: combinedShiftTime,
+                }]);
+
+                if (insertError) {
+                    console.error(`Insert failed for ${empId} ${combinedShiftName}`, insertError);
+                } else {
+                    atLeastOneSaved = true;
+                }
+            }
+
+            if (atLeastOneSaved) {
+                alert("Roster saved successfully!");
+                rosterDateInput.value = "";
+                resetForm();
+            }
+        }
+
+        // Generate PDF
+        function generatePDF() {
+            const selectedDate = rosterDateInput.value;
+            if (!selectedDate) {
+                alert("Please select a date.");
+                return;
+            }
+
+            const rows = document.querySelectorAll("#virtualScrollContent tr");
+            if (rows.length === 0) {
+                alert("No data to generate PDF.");
+                return;
+            }
+
+            // Validate at least one shift is selected
+            let anyShiftSelected = false;
+            rows.forEach(row => {
+                const empId = row.getAttribute("data-emp-id");
+                if (userShiftData[empId]?.shifts?.length > 0) {
+                    anyShiftSelected = true;
+                }
+            });
+
+            if (!anyShiftSelected) {
+                alert("Please select at least one shift.");
+                return;
+            }
+
+            // Validate wards
+            for (const row of rows) {
+                const empId = row.getAttribute("data-emp-id");
+                const userData = userShiftData[empId] || { shifts: [], ward: "" };
+                
+                if (userData.shifts.length > 0) {
+                    const hasLeaveShift = userData.shifts.includes("L") || userData.shifts.includes("WO");
+                    if (!hasLeaveShift && !userData.ward) {
+                        const empName = row.cells[0].querySelector("strong")?.textContent.trim() || "";
+                        alert(`Please select ward for ${empName} (ID: ${empId}) who is not on Leave (L) or WO.`);
+                        return;
+                    }
+                }
+            }
+
+            // Generate PDF
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+
+            doc.setFontSize(18);
+            doc.text("Hospital Duty Roster", 14, 10);
+            doc.setFontSize(12);
+            doc.text(`Date: ${selectedDate}`, 14, 18);
+
+            const headers = [["Emp ID", "Name", "Ward", "Shift"]];
+            const data = [];
+
+            rows.forEach(row => {
+                const empId = row.getAttribute("data-emp-id");
+                const empName = row.cells[0].querySelector("strong")?.textContent.trim() || "";
+                const userData = userShiftData[empId] || { shifts: [], ward: "" };
+                
+                if (userData.shifts.length > 0) {
+                    data.push([empId, empName, userData.ward, userData.shifts.join(", ")]);
+                }
+            });
+
+            doc.autoTable({
+                head: headers,
+                body: data,
+                startY: 32,
+            });
+
+            doc.save(`duty_roster_${selectedDate}.pdf`);
+        }
+
+        // Reset form
+        function resetForm() {
+            rosterDateInput.value = "";
+            searchInput.value = "";
+            allUsersData = [];
+            filteredUsersData = [];
+            userShiftData = {};
+            virtualScrollContent.innerHTML = "";
+            loadUsers();
+        }
+
+        // Initialize the app
+        document.addEventListener("DOMContentLoaded", () => {
+            // Set default date to today
+            const today = new Date().toISOString().split("T")[0];
+            rosterDateInput.value = today;
+            
+            // Load initial data
+            loadUsers();
+            
+            // Event listeners
+            searchInput.addEventListener("input", handleSearch);
+            saveBtn.addEventListener("click", saveRoster);
+            downloadBtn.addEventListener("click", generatePDF);
+            resetBtn.addEventListener("click", resetForm);
+            virtualScrollContainer.addEventListener("scroll", updateVisibleItems);
+            
+            // Window resize handler
+            window.addEventListener("resize", updateVisibleItems);
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,563 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Employee Profile</title>
+    <style>
+        :root {
+            --primary: #4f46e5;
+            --secondary: #f9fafb;
+            --text: #1f2937;
+            --text-light: #6b7280;
+            --white: #ffffff;
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+        }
+        
+        body {
+            background-color: var(--secondary);
+            color: var(--text);
+            line-height: 1.6;
+        }
+        
+        .header {
+            display: flex;
+            align-items: center;
+            padding: 16px;
+            background: var(--white);
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+        
+        .back-btn {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: var(--secondary);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 12px;
+            cursor: pointer;
+            border: none;
+            color: var(--primary);
+        }
+        
+        .header-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: var(--text);
+            flex-grow: 1;
+        }
+        
+        .header-profile-pic {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 2px solid var(--white);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-left: auto;
+            opacity: 0;
+            transform: scale(0.8);
+            transition: all 0.3s ease;
+        }
+        
+        .header-profile-pic.visible {
+            opacity: 1;
+            transform: scale(1);
+        }
+        
+        .profile-scroll-container {
+            height: calc(100vh - 72px);
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+        
+        .profile-container {
+            padding: 20px;
+            max-width: 500px;
+            margin: 0 auto;
+        }
+        
+        .profile-card {
+            background: var(--white);
+            border-radius: 16px;
+            overflow: hidden;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+            margin-bottom: 20px;
+        }
+        
+        .profile-header {
+            background: var(--primary);
+            padding: 30px 20px 70px;
+            text-align: center;
+            position: relative;
+        }
+        
+        .profile-pic-container {
+            position: relative;
+            display: inline-block;
+            margin-top: 30px;
+        }
+        
+        .profile-pic {
+            width: 120px;
+            height: 120px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 4px solid var(--white);
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+        }
+        
+        .upload-btn {
+            position: absolute;
+            bottom: 5px;
+            right: 5px;
+            background: var(--primary);
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 3px solid var(--white);
+            cursor: pointer;
+            color: var(--white);
+        }
+        
+        .profile-body {
+            padding: 70px 20px 30px;
+            margin-top: -50px;
+        }
+        
+        .employee-name {
+            text-align: center;
+            font-size: 22px;
+            font-weight: 700;
+            margin-bottom: 5px;
+            transition: all 0.3s ease;
+        }
+        
+        .detail-value[contenteditable="true"],
+        .employee-name[contenteditable="true"] {
+            border: 1px solid #e5e7eb;
+            border-radius: 6px;
+            padding: 8px;
+            outline: none;
+            cursor: text;
+            transition: all 0.3s ease;
+        }
+        
+        .detail-value[contenteditable="true"]:focus,
+        .employee-name[contenteditable="true"]:focus {
+            border-color: var(--primary);
+            background: var(--secondary);
+        }
+        
+        .date-input {
+            border: 1px solid #e5e7eb;
+            padding: 6px;
+            border-radius: 6px;
+            width: 100%;
+        }
+        
+        .employee-designation {
+            text-align: center;
+            color: var(--primary);
+            font-weight: 500;
+            margin-bottom: 25px;
+        }
+        
+        .detail-section {
+            margin-bottom: 25px;
+        }
+        
+        .section-title {
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 15px;
+            color: var(--text-light);
+            display: flex;
+            align-items: center;
+        }
+        
+        .section-title i {
+            margin-right: 8px;
+            color: var(--primary);
+        }
+        
+        .detail-item {
+            display: flex;
+            margin-bottom: 15px;
+        }
+        
+        .detail-label {
+            flex: 1;
+            color: var(--text-light);
+            font-size: 14px;
+        }
+        
+        .detail-value {
+            flex: 2;
+            font-weight: 500;
+        }
+        
+        .action-buttons {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+        
+        .btn {
+            flex: 1;
+            padding: 12px;
+            border-radius: 8px;
+            border: none;
+            font-weight: 500;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            transition: all 0.3s ease;
+        }
+        
+        .btn-primary {
+            background: var(--primary);
+            color: var(--white);
+        }
+        
+        .btn-outline {
+            background: transparent;
+            color: var(--primary);
+            border: 1px solid var(--primary);
+        }
+        
+        #profile-upload {
+            display: none;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 20px;
+            color: var(--text-light);
+        }
+        
+        #submitChanges {
+            margin: 20px auto 0;
+            display: none;
+            width: 200px;
+        }
+        
+        @media (max-width: 480px) {
+            .action-buttons {
+                flex-direction: column;
+            }
+            
+            .header-profile-pic {
+                width: 32px;
+                height: 32px;
+            }
+            
+            #submitChanges {
+                width: 100%;
+            }
+        }
+    </style>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+    <div class="header">
+        <button class="back-btn" onclick="window.history.back()">
+            <i class="fas fa-arrow-left"></i>
+        </button>
+        <h1 class="header-title">Employee Profile</h1>
+        <img src="" alt="Profile" class="header-profile-pic" id="headerProfilePic">
+    </div>
+    
+    <div class="profile-scroll-container" id="scrollContainer">
+        <div class="profile-container">
+            <div class="profile-card">
+                <div class="profile-header">
+                    <div class="profile-pic-container">
+                        <img src="" alt="Profile" class="profile-pic" id="profile-pic">
+                        <button class="upload-btn" onclick="document.getElementById('profile-upload').click()">
+                            <i class="fas fa-camera"></i>
+                        </button>
+                        <input type="file" id="profile-upload" accept="image/*" onchange="uploadProfilePicture(this)">
+                    </div>
+                </div>
+                
+                <div class="profile-body" id="profileBody">
+                    <div class="loading">
+                        <i class="fas fa-spinner fa-spin"></i> Loading employee data...
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', async function () {
+    const supabaseUrl = 'https://nqbrepbtcacdvatfcqrz.supabase.co';
+    const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5xYnJlcGJ0Y2FjZHZhdGZjcXJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDU5MjgyOTIsImV4cCI6MjA2MTUwNDI5Mn0.2-IdK9Jh3Can-KT2rVUm8SMUt-7BL9OL58unLBtM9AM';
+    const supabaseClient = supabase.createClient(supabaseUrl, supabaseKey);
+    const empId = new URLSearchParams(window.location.search).get('emp_id') || 'EMP002';
+
+    let originalData = {};
+
+    // Navigation functions
+    window.goToAttendance = function(empId) {
+        window.location.href = `attndanceadmin.html?emp_id=${empId}`;
+    };
+
+    window.goToRoster = function(empId) {
+        window.location.href = `adminshift.html?emp_id=${empId}`;
+    };
+
+    // Fetch employee data
+    async function fetchEmployeeData() {
+        try {
+            const { data, error } = await supabaseClient
+                .from('users')
+                .select('*')
+                .eq('emp_id', empId)
+                .single();
+
+            if (error) throw error;
+
+            const profileUrl = data.user_profile_url || 'https://randomuser.me/api/portraits/men/32.jpg';
+            document.getElementById('profile-pic').src = profileUrl;
+            document.getElementById('headerProfilePic').src = profileUrl;
+
+            originalData = {
+                name: data.name || 'Not Available',
+                designation: data.designation || 'N/A',
+                department: data.department || 'N/A',
+                date_of_joining: data.date_of_joining || 'N/A',
+                personal_contact: data.personal_contact || 'N/A',
+                email: data.email || 'N/A',
+                address: data.address || 'N/A',
+                manager: data.manager || 'N/A',
+                team: data.team || 'N/A'
+            };
+
+            document.getElementById('profileBody').innerHTML = `
+                <h2 class="employee-name" id="employeeName">${originalData.name}</h2>
+                <div class="employee-designation" id="designation">${originalData.designation}</div>
+
+                <div class="action-buttons">
+                    <button class="btn btn-outline" onclick="goToAttendance('${empId}')">
+                        <i class="fas fa-calendar-check"></i> Attendance
+                    </button>
+                    <button class="btn btn-outline" onclick="goToRoster('${empId}')">
+                        <i class="fas fa-clipboard-list"></i> Roster
+                    </button>
+                </div>
+
+                <div class="detail-section">
+                    <div class="section-title"><i class="fas fa-id-card"></i><span>Basic Information</span></div>
+                    <div class="detail-item">
+                        <div class="detail-label">Employee ID</div>
+                        <div class="detail-value">${data.emp_id}</div>
+                    </div>
+                    <div class="detail-item">
+                        <div class="detail-label">Department</div>
+                        <div class="detail-value" id="department">${originalData.department}</div>
+                    </div>
+                    <div class="detail-item">
+                        <div class="detail-label">Date of Joining</div>
+                        <div class="detail-value" id="dateOfJoining">${originalData.date_of_joining}</div>
+                    </div>
+                </div>
+
+                <div class="detail-section">
+                    <div class="section-title"><i class="fas fa-address-book"></i><span>Contact Details</span></div>
+                    <div class="detail-item">
+                        <div class="detail-label">Phone</div>
+                        <div class="detail-value" id="phone">${originalData.personal_contact}</div>
+                    </div>
+                    <div class="detail-item">
+                        <div class="detail-label">Email</div>
+                        <div class="detail-value" id="email">${originalData.email}</div>
+                    </div>
+                    <div class="detail-item">
+                        <div class="detail-label">Address</div>
+                        <div class="detail-value" id="address">${originalData.address}</div>
+                    </div>
+                </div>
+
+                <div class="detail-section">
+                    <div class="section-title"><i class="fas fa-briefcase"></i><span>Work Details</span></div>
+                    <div class="detail-item">
+                        <div class="detail-label">Manager</div>
+                        <div class="detail-value" id="manager">${originalData.manager}</div>
+                    </div>
+                    <div class="detail-item">
+                        <div class="detail-label">Team</div>
+                        <div class="detail-value" id="team">${originalData.team}</div>
+                    </div>
+                </div>
+
+                <div class="action-buttons">
+                    <button class="btn btn-primary" onclick="window.location.href='tel:${data.personal_contact || ''}'">
+                        <i class="fas fa-phone-alt"></i> Call
+                    </button>
+                    <button class="btn btn-outline" onclick="window.location.href='mailto:${data.email || ''}'">
+                        <i class="fas fa-envelope"></i> Message
+                    </button>
+                </div>
+
+                <button class="btn btn-primary" id="submitChanges">
+                    <i class="fas fa-save"></i> Save All Changes
+                </button>
+            `;
+
+            setupEditFeatures();
+        } catch (error) {
+            console.error('Error fetching data:', error);
+            document.getElementById('profileBody').innerHTML = `
+                <div class="loading">Error: ${error.message}</div>
+            `;
+        }
+    }
+
+    // Edit functionality
+    function setupEditFeatures() {
+        const editableFields = [
+            'employeeName', 'designation', 'department', 
+            'dateOfJoining', 'phone', 'email', 
+            'address', 'manager', 'team'
+        ];
+
+        // Enable editing for all fields
+        editableFields.forEach(id => {
+            const field = document.getElementById(id);
+            if (field) {
+                field.contentEditable = true;
+                field.addEventListener('focus', () => {
+                    document.getElementById('submitChanges').style.display = 'flex';
+                });
+            }
+        });
+
+        // Date picker handling
+        const dateField = document.getElementById('dateOfJoining');
+        dateField.addEventListener('click', () => {
+            const input = document.createElement('input');
+            input.type = 'date';
+            input.className = 'date-input';
+            input.value = originalData.date_of_joining;
+            
+            input.addEventListener('change', (e) => {
+                dateField.textContent = e.target.value;
+                input.remove();
+            });
+
+            dateField.innerHTML = '';
+            dateField.appendChild(input);
+            input.focus();
+        });
+
+        // Save button handler
+        document.getElementById('submitChanges').addEventListener('click', async () => {
+            const updatedData = {
+                name: document.getElementById('employeeName').textContent.trim(),
+                designation: document.getElementById('designation').textContent.trim(),
+                department: document.getElementById('department').textContent.trim(),
+                date_of_joining: document.getElementById('dateOfJoining').textContent.trim(),
+                personal_contact: document.getElementById('phone').textContent.trim(),
+                email: document.getElementById('email').textContent.trim(),
+                address: document.getElementById('address').textContent.trim(),
+                manager: document.getElementById('manager').textContent.trim(),
+                team: document.getElementById('team').textContent.trim()
+            };
+
+            const submitBtn = document.getElementById('submitChanges');
+            submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
+            submitBtn.disabled = true;
+
+            try {
+                const { error } = await supabaseClient
+                    .from('users')
+                    .update(updatedData)
+                    .eq('emp_id', empId);
+
+                if (error) throw error;
+
+                // Update original data
+                originalData = { ...originalData, ...updatedData };
+                
+                submitBtn.innerHTML = '<i class="fas fa-check"></i> Saved!';
+                setTimeout(() => {
+                    submitBtn.style.display = 'none';
+                    submitBtn.innerHTML = '<i class="fas fa-save"></i> Save All Changes';
+                    submitBtn.disabled = false;
+                }, 1500);
+            } catch (error) {
+                console.error('Update error:', error);
+                submitBtn.innerHTML = '<i class="fas fa-exclamation-triangle"></i> Error';
+                setTimeout(() => {
+                    submitBtn.style.display = 'none';
+                    submitBtn.innerHTML = '<i class="fas fa-save"></i> Save All Changes';
+                    submitBtn.disabled = false;
+                }, 2000);
+            }
+        });
+    }
+
+    // Profile picture upload
+    window.uploadProfilePicture = async function(input) {
+        if (!input.files?.[0]) return;
+
+        const file = input.files[0];
+        const fileExt = file.name.split('.').pop();
+        const fileName = `${empId}_${Date.now()}.${fileExt}`;
+        const filePath = `avatars/${fileName}`;
+
+        const uploadBtn = document.querySelector('.upload-btn');
+        uploadBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+
+        try {
+            const { error: uploadError } = await supabaseClient.storage
+                .from('avatars')
+                .upload(filePath, file);
+
+            if (uploadError) throw uploadError;
+
+            const { data: { publicUrl } } = await supabaseClient.storage
+                .from('avatars')
+                .getPublicUrl(filePath);
+
+            await supabaseClient
+                .from('users')
+                .update({ user_profile_url: publicUrl })
+                .eq('emp_id', empId);
+
+            document.getElementById('profile-pic').src = publicUrl;
+            document.getElementById('headerProfilePic').src = publicUrl;
+        } catch (error) {
+            console.error('Upload error:', error);
+            alert('Error uploading profile picture');
+        } finally {
+            uploadBtn.innerHTML = '<i class="fas fa-camera"></i>';
+        }
+    };
+
+    // Initialize
+    fetchEmployeeData();
+});
+</script>
+</body>
+</html>

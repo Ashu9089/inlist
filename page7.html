@@ -1,0 +1,556 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+
+
+
+
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+
+    <title>Request Approval System</title>
+<!-- Add this in your <head> BEFORE your own <script> -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+
+
+   <style>
+  * {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  }
+
+  body {
+    background-color: #f5f7fa;
+    color: #333;
+    padding: 20px;
+  }
+
+  .header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid #e0e0e0;
+  }
+
+  .title {
+    font-size: 20px;
+    font-weight: 600;
+    color: #2c3e50;
+  }
+
+  .filters {
+    display: flex;
+    gap: 10px;
+  }
+
+  select, button {
+    padding: 6px 10px;
+    border-radius: 4px;
+    border: 1px solid #ddd;
+    background-color: white;
+    font-size: 13px;
+  }
+
+  .request-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .request-card {
+    padding: 10px;
+    border: 1px solid #ccc;
+    border-left: 4px solid #ccc;
+    border-radius: 6px;
+    background-color: #fff;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+    font-size: 13px;
+  }
+
+  .leave { border-left-color: #3498db; }
+  .overtime { border-left-color: #e67e22; }
+  .shift-change { border-left-color: #9b59b6; }
+  .exchange-duty { border-left-color: #1abc9c; }
+  .miss-punch { border-left-color: #e74c3c; }
+
+  .request-header {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 6px;
+  }
+
+  .emp-name {
+    font-weight: 600;
+    color: #2c3e50;
+    font-size: 14px;
+  }
+
+  .emp-id {
+    font-size: 12px;
+    color: #7f8c8d;
+  }
+
+  .profile-img {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    object-fit: cover;
+    margin-right: 8px;
+  }
+
+  .request-type {
+    display: inline-block;
+    padding: 2px 6px;
+    border-radius: 10px;
+    font-size: 11px;
+    font-weight: 500;
+    background-color: #e3f2fd;
+    color: #1976d2;
+    margin-top: 2px;
+  }
+
+  .request-details {
+    margin: 6px 0;
+    color: #555;
+  }
+
+  .request-date {
+    font-size: 11px;
+    color: #95a5a6;
+  }
+
+  .action-buttons {
+    display: flex;
+    gap: 6px;
+    justify-content: flex-end;
+    margin-top: 6px;
+  }
+
+  button {
+    padding: 5px 10px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: 600;
+    border: none;
+    transition: background-color 0.2s;
+  }
+
+  button.approve {
+    background-color: #a8e6a1;
+    color: #155724;
+  }
+  button.approve:hover:not(:disabled) {
+    background-color: #28a745;
+    color: white;
+  }
+
+  button.reject {
+    background-color: #f7b0a2;
+    color: #721c24;
+  }
+  button.reject:hover:not(:disabled) {
+    background-color: #dc3545;
+    color: white;
+  }
+
+  button.view {
+    background-color: #007bff;
+    color: white;
+  }
+  button.view:hover:not(:disabled) {
+    background-color: #0056b3;
+  }
+
+  button:disabled {
+    background-color: #ddd !important;
+    color: #666 !important;
+    cursor: not-allowed;
+  }
+.request-status {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1px 6px;      /* top-bottom padding kam kiya */
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1.2;
+  margin-top: 15px;       /* top margin kam kiya */
+  margin-bottom: 1px;    /* bottom margin add kiya, kam value */
+}
+
+
+
+
+  .status-pending {
+    background-color: #fff3e0;
+    color: #ff9800;
+  }
+
+  .status-approved {
+    background-color: #e8f5e9;
+    color: #2e7d32;
+  }
+
+  .status-rejected {
+    background-color: #ffebee;
+    color: #c62828;
+  }
+</style>
+
+</head>
+<body>
+    <div class="header">
+        <div class="title">Employee Requests Approval</div>
+        <div class="filters">
+            <select id="filterType">
+                <option value="all">All Types</option>
+                <option value="leave">Leave</option>
+                <option value="overtime">Overtime</option>
+                <option value="shift-change">Shift Change</option>
+                <option value="exchange-duty">Exchange Duty</option>
+                <option value="miss-punch">Miss Punch</option>
+            </select>
+            <select id="filterStatus">
+                <option value="all">All Statuses</option>
+                <option value="pending">Pending</option>
+                <option value="approved">Approved</option>
+                <option value="rejected">Rejected</option>
+            </select>
+        </div>
+    </div>
+<div id="popup" style="display:none; position: fixed; top: 50%; left:50%; transform: translate(-50%, -50%);
+ background: white; padding: 20px; box-shadow: 0 0 10px rgba(0,0,0,0.3); border-radius: 8px; z-index: 1000;">
+  <h3>Request Details</h3>
+  <p>Yahan request details dikhayenge.</p>
+  <button onclick="closePopup()">Close</button>
+</div>
+<div id="popupOverlay" style="display:none; position: fixed; top:0; left:0; width:100%; height:100%; 
+background: rgba(0,0,0,0.4); z-index: 999;" onclick="closePopup()"></div>
+<div id="requestsContainer"></div>
+
+    
+    <div class="request-list" id="requestList">
+        <!-- Request cards will be dynamically inserted here -->
+    </div>
+
+    <script>
+  // Initialize Supabase
+  const supabase = window.supabase.createClient('https://nqbrepbtcacdvatfcqrz.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5xYnJlcGJ0Y2FjZHZhdGZjcXJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDU5MjgyOTIsImV4cCI6MjA2MTUwNDI5Mn0.2-IdK9Jh3Can-KT2rVUm8SMUt-7BL9OL58unLBtM9AM');
+  // Logged in approver emp id
+  const approverEmpId = "EMP001";
+
+  // Store fetched requests here
+  let requests = [];
+
+  // Fetch requests from all tables
+  async function fetchRequests() {
+    // Leave Requests
+    const { data: leaveRequests, error: leaveError } = await supabase.from('leave_requests').select('*');
+    if (leaveError) console.error('Leave requests error:', leaveError);
+
+    // OT Requests
+    const { data: otRequests, error: otError } = await supabase.from('ot_request').select('*');
+    if (otError) console.error('OT requests error:', otError);
+
+    // Shift Changes
+    const { data: shiftChanges, error: shiftError } = await supabase.from('shift_changes').select('*');
+    if (shiftError) console.error('Shift changes error:', shiftError);
+
+    // Exchange Duties
+    // Exchange Duties — Only those assigned to approver and in 'review' status
+
+const { data: exchangeDuties, error: exchangeError } = await supabase
+    .from('exchange_duty')
+    .select('*')
+    .in('status', ['review', 'approved','rejected']);
+
+if (exchangeError) console.error('Exchange duties error:', exchangeError);
+
+
+
+ 
+    // Combine into one array with common keys
+    const combined = [];
+
+    // Helper to create normalized request object
+    function normalizeRequest(r, type, typeText) {
+      return {
+        id: r.id,
+        empId: r.emp_id,
+        empName: r.emp_name || 'N/A',
+        type: type,
+        typeText: typeText,
+        details: r.reason || r.details || 'No details',
+        date: (r.request_date || r.created_at || '').split('T')[0],
+        status: r.status || 'pending',
+        profileUrl: null  // Will fill later
+      };
+    }
+
+    leaveRequests?.forEach(r => combined.push(normalizeRequest(r, 'leave', 'Leave Request')));
+    otRequests?.forEach(r => combined.push(normalizeRequest(r, 'overtime', 'Overtime Request')));
+    shiftChanges?.forEach(r => combined.push(normalizeRequest(r, 'shift-change', 'Shift Change Request')));
+    exchangeDuties?.forEach(r => combined.push(normalizeRequest(r, 'exchange-duty', 'Exchange Duty Request')));
+
+    // Fetch profile URLs for each empId in parallel (optional)
+    await Promise.all(combined.map(async (req) => {
+      req.profileUrl = await getProfileUrl(req.empId);
+    }));
+
+    return combined;
+  }
+
+  // Get profile URL by emp id from users table
+  async function getProfileUrl(empId) {
+    const { data, error } = await supabase
+      .from('users')
+      .select('user_profile_url')
+      .eq('emp_id', empId)
+      .single();
+    if (error) {
+      console.warn('Profile URL fetch error:', error);
+      return null;
+    }
+    return data?.user_profile_url || null;
+  }
+
+
+async function getUserDetails(empId) {
+  const { data, error } = await supabase
+    .from('users')
+    .select('name, email, personal_contact, department, designation, user_profile_url')
+    .eq('emp_id', empId)
+    .single();
+
+  if (error) {
+    console.warn('User details fetch error:', error);
+    return null;
+  }
+
+  return data;
+}
+
+
+
+  // Render requests in HTML
+  function renderRequests(filterType = 'all', filterStatus = 'all') {
+  const container = document.getElementById('requestsContainer');
+  container.innerHTML = '';
+
+  let filtered = requests;
+
+  if (filterType !== 'all') {
+    filtered = filtered.filter(r => r.type === filterType);
+  }
+  if (filterStatus !== 'all') {
+    filtered = filtered.filter(r => r.status === filterStatus);
+  }
+
+  if (filtered.length === 0) {
+    container.innerHTML = '<p>No requests found.</p>';
+    return;
+  }
+
+  filtered.forEach(req => {
+    const card = document.createElement('div');
+    card.className = `request-card ${req.type}`;
+const showButtons = (req.status === 'review' || req.status === 'pending');
+
+card.innerHTML = `
+  <div class="request-header">
+    ${req.profileUrl ? `<img src="${req.profileUrl}" alt="Profile" class="profile-img" />` : ''}
+    <div>
+      <div><strong>${req.empName}</strong> (${req.empId})</div>
+      <div class="request-type">${req.typeText}</div>
+    </div>
+    <div class="request-status status-${req.status}">${req.status.toUpperCase()}</div>
+  </div>
+  <div style="margin-top:8px;">
+    <strong>Date:</strong> ${req.date} <br />
+    <strong>Details:</strong> ${req.details}
+  </div>
+  <div style="margin-top:10px;">
+    ${showButtons ? `<button class="approve" onclick="approveRequest(${req.id}, '${req.type}')">Approve</button>` : ''}
+    ${showButtons ? `<button class="reject" onclick="rejectRequest(${req.id}, '${req.type}')">Reject</button>` : ''}
+    <button class="view" onclick="viewRequest(${req.id}, '${req.type}')">View</button>
+  </div>
+`;
+
+
+    container.appendChild(card);
+  });
+}
+
+  // Update request status in Supabase
+  async function updateRequestStatus(id, type, status) {
+    const tableMap = {
+      'leave': 'leave_requests',
+      'overtime': 'ot_request',
+      'shift-change': 'shift_changes',
+      'exchange-duty': 'exchange_duty'
+    };
+
+    const table = tableMap[type];
+    if (!table) {
+      alert('Unknown request type.');
+      return false;
+    }
+
+    const { error } = await supabase
+      .from(table)
+      .update({
+        status: status,
+        approved_by_emp_id: status === 'approved' ? approverEmpId : null
+      })
+      .eq('id', id);
+
+    if (error) {
+      console.error('Update failed:', error);
+      alert('Failed to update request status.');
+      return false;
+    }
+    return true;
+  }
+
+
+
+
+
+  // Approve request handler
+ async function approveRequest(id, type) {
+  const success = await updateRequestStatus(id, type, 'approved');
+  if (success) {
+    const req = requests.find(r => r.id === id && r.type === type);
+    if (req) req.status = 'approved';
+
+    // यदि अनुरोध का प्रकार 'shift-change' या 'exchange-duty' है, तो shifts टेबल को अपडेट करें
+    if (type === 'shift-change' || type === 'exchange-duty') {
+      try {
+        let empId, shiftDate, shiftName;
+
+        if (type === 'shift-change') {
+          // shift_changes टेबल से संबंधित डेटा प्राप्त करें
+          const { data, error } = await supabase
+            .from('shift_changes')
+            .select('emp_id, shift_date, shift_name')
+            .eq('id', id)
+            .single();
+
+          if (error) throw error;
+          empId = data.emp_id;
+          shiftDate = data.shift_date;
+          shiftName = data.shift_name;
+
+        } else if (type === 'exchange-duty') {
+          // exchange_duty टेबल से संबंधित डेटा प्राप्त करें
+          const { data, error } = await supabase
+            .from('exchange_duty')
+            .select('exchange_emp_id, exchange_date, exchange_shift_name')
+            .eq('id', id)
+            .single();
+
+          if (error) throw error;
+          empId = data.exchange_emp_id;
+          shiftDate = data.exchange_date;
+          shiftName = data.exchange_shift_name;
+        }
+
+        // shifts टेबल में संबंधित रिकॉर्ड को अपडेट करें
+        const { error: updateError } = await supabase
+          .from('shifts')
+          .update({ shift_name: shiftName })
+          .eq('emp_id', empId)
+          .eq('shift_date', shiftDate);
+
+        if (updateError) throw updateError;
+
+        alert('Request approved and shift updated successfully!');
+      } catch (err) {
+        console.error('Shift update failed:', err);
+        alert('Request approved, but failed to update shift.');
+      }
+    } else {
+      alert('Request approved!');
+    }
+
+    renderRequests(document.getElementById('filterType').value, document.getElementById('filterStatus').value);
+  }
+}
+
+
+
+
+
+  // Reject request handler
+  async function rejectRequest(id, type) {
+    const success = await updateRequestStatus(id, type, 'rejected');
+    if (success) {
+      const req = requests.find(r => r.id === id && r.type === type);
+      if (req) req.status = 'rejected';
+      alert('Request rejected!');
+      renderRequests(document.getElementById('filterType').value, document.getElementById('filterStatus').value);
+    }
+  }
+
+
+
+function viewRequest(id, type) {
+  // Find the request from the requests array
+  const req = requests.find(r => r.id === id && r.type === type);
+  if (!req) {
+    alert('Request not found!');
+    return;
+  }
+
+  // Fill the popup content dynamically
+  const popup = document.getElementById('popup');
+  popup.innerHTML = `
+    <h3>Request Details</h3>
+    <p><strong>Employee:</strong> ${req.empName} (${req.empId})</p>
+    <p><strong>Type:</strong> ${req.typeText}</p>
+    <p><strong>Date:</strong> ${req.date}</p>
+    <p><strong>Status:</strong> ${req.status.toUpperCase()}</p>
+    <p><strong>Details:</strong> ${req.details}</p>
+    <button onclick="closePopup()">Close</button>
+  `;
+
+  // Show popup and overlay
+  document.getElementById('popup').style.display = 'block';
+  document.getElementById('popupOverlay').style.display = 'block';
+}
+ 
+function closePopup() {
+  document.getElementById('popup').style.display = 'none';
+  document.getElementById('popupOverlay').style.display = 'none';
+}
+
+
+
+  // Attach approve/reject functions to window so inline onclick can access
+  window.approveRequest = approveRequest;
+  window.rejectRequest = rejectRequest;
+
+  // On page load: fetch and render requests
+  document.addEventListener('DOMContentLoaded', async () => {
+    requests = await fetchRequests();
+    renderRequests();
+
+    document.getElementById('filterType').addEventListener('change', e => {
+      renderRequests(e.target.value, document.getElementById('filterStatus').value);
+    });
+
+    document.getElementById('filterStatus').addEventListener('change', e => {
+      renderRequests(document.getElementById('filterType').value, e.target.value);
+    });
+  });
+</script>
+</body>
+</html>

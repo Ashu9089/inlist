@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Leave Request Form</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    header {
+      position: fixed;
+      top: 0;
+      width: 100%;
+      z-index: 50;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    main {
+      margin-top: 80px;
+    }
+    .error-message {
+      color: #e63946;
+      font-size: 13px;
+      margin-top: 5px;
+      display: none;
+    }
+  </style>
+</head>
+<body class="bg-gray-50 text-gray-800 font-sans">
+
+  <!-- Top Bar -->
+  <header class="bg-blue-600 text-white px-5 py-3 flex items-center justify-between shadow">
+    <span onclick="window.history.back()" class="cursor-pointer text-xl hover:text-gray-200">←</span>
+    <h1 class="text-lg font-semibold">Leave Request Form</h1>
+    <span id="empLabel" class="text-sm font-bold"></span>
+  </header>
+
+  <!-- Form Section -->
+  <main class="p-4 space-y-6" id="formContainer">
+    <div class="form-row rounded-xl bg-white p-5 shadow-sm border border-gray-200 space-y-3">
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1">Leave Type</label>
+        <select class="leaveType w-full border-gray-300 rounded-md shadow-sm p-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+          <option value="">Select Leave Type</option>
+          <option value="CL">Casual Leave (CL)</option>
+          <option value="SL">Sick Leave (SL)</option>
+          <option value="EL">Earned Leave (EL)</option>
+          <option value="LWP">Leave Without Pay (LWP)</option>
+        </select>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">From Date</label>
+          <input type="date" class="fromDate w-full border-gray-300 rounded-md shadow-sm p-2 focus:outline-none focus:ring-2 focus:ring-blue-500" onchange="checkDuplicateLeave()" />
+          <div id="dateError" class="error-message">You already have a leave request for these dates</div>
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">To Date</label>
+          <input type="date" class="toDate w-full border-gray-300 rounded-md shadow-sm p-2 focus:outline-none focus:ring-2 focus:ring-blue-500" onchange="checkDuplicateLeave()" />
+        </div>
+      </div>
+
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1">Reason</label>
+        <textarea class="reason w-full border-gray-300 rounded-md shadow-sm p-2 focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Enter reason..."></textarea>
+      </div>
+
+      <!-- Total Days Display -->
+      <div class="pt-2">
+        <span class="font-semibold text-gray-700">Total Leave Days:</span>
+        <span id="totalDays" class="text-blue-600 font-bold ml-2">0</span>
+      </div>
+    </div>
+  </main>
+
+  <!-- Submit Button -->
+  <div class="flex justify-end items-center px-4 pt-6 pb-10">
+    <button onclick="submitLeave()" class="bg-green-600 hover:bg-green-700 text-white px-5 py-2 rounded-md shadow-md transition">✅ Submit</button>
+  </div>
+
+  <script>
+    const empId = new URLSearchParams(window.location.search).get("emp_id") || "EMP001";
+    document.getElementById("empLabel").textContent = empId;
+
+    const { createClient } = supabase;
+    const supabaseClient = createClient(
+      'https://nqbrepbtcacdvatfcqrz.supabase.co',
+      'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5xYnJlcGJ0Y2FjZHZhdGZjcXJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDU5MjgyOTIsImV4cCI6MjA2MTUwNDI5Mn0.2-IdK9Jh3Can-KT2rVUm8SMUt-7BL9OL58unLBtM9AM'
+    );
+
+    // Check for overlapping leave requests
+    async function checkDuplicateLeave() {
+      const fromDate = document.querySelector(".fromDate").value;
+      const toDate = document.querySelector(".toDate").value;
+      const errorElement = document.getElementById("dateError");
+      
+      if (!fromDate || !toDate) return false;
+      
+      // First calculate days to ensure valid date range
+      calculateDays();
+      
+      // Check if dates are valid
+      const start = new Date(fromDate);
+      const end = new Date(toDate);
+      if (start > end) {
+        errorElement.textContent = "To Date must be after From Date";
+        errorElement.style.display = "block";
+        return true;
+      }
+
+      // Check for existing leave requests in this date range
+      const { data, error } = await supabaseClient
+        .from("leave_requests")
+        .select("from_date, to_date")
+        .eq("emp_id", empId)
+        .lte("from_date", toDate)
+        .gte("to_date", fromDate)
+        .neq("status", "rejected"); // Ignore rejected requests
+
+      if (error) {
+        console.error("Error checking leave requests:", error);
+        return false;
+      }
+
+      if (data && data.length > 0) {
+        errorElement.style.display = "block";
+        return true;
+      } else {
+        errorElement.style.display = "none";
+        return false;
+      }
+    }
+
+    function calculateDays() {
+      const fromDate = document.querySelector(".fromDate").value;
+      const toDate = document.querySelector(".toDate").value;
+      const daysDisplay = document.getElementById("totalDays");
+      const errorElement = document.getElementById("dateError");
+
+      if (fromDate && toDate) {
+        const start = new Date(fromDate);
+        const end = new Date(toDate);
+        
+        // Reset error if dates are valid
+        if (start <= end) {
+          errorElement.style.display = "none";
+        }
+        
+        const diffTime = end - start;
+        const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24)) + 1;
+
+        daysDisplay.textContent = diffDays > 0 ? diffDays : 0;
+      } else {
+        daysDisplay.textContent = 0;
+      }
+    }
+
+    async function submitLeave() {
+      const type = document.querySelector(".leaveType").value;
+      const from = document.querySelector(".fromDate").value;
+      const to = document.querySelector(".toDate").value;
+      const reason = document.querySelector(".reason").value;
+      const totalDays = document.getElementById("totalDays").textContent;
+      const errorElement = document.getElementById("dateError");
+
+      // Basic validation
+      if (!type || !from || !to || !reason) {
+        alert("⚠️ Please fill all fields before submitting.");
+        return;
+      }
+
+      // Check date validity
+      const start = new Date(from);
+      const end = new Date(to);
+      if (start > end) {
+        errorElement.textContent = "To Date must be after From Date";
+        errorElement.style.display = "block";
+        return;
+      }
+
+      // Check for duplicate leave requests
+      const hasDuplicate = await checkDuplicateLeave();
+      if (hasDuplicate) {
+        alert("⚠️ You already have a leave request for these dates. Please check your dates.");
+        return;
+      }
+
+      const entry = {
+        emp_id: empId,
+        leave_type: type,
+        from_date: from,
+        to_date: to,
+        total_days: parseInt(totalDays),
+        reason: reason,
+        status: "pending"
+      };
+
+      const { error } = await supabaseClient.from("leave_requests").insert([entry]);
+      if (error) {
+        console.error("Error submitting leave request:", error.message);
+        alert("❌ Submission error: " + error.message);
+      } else {
+        alert("✅ Leave request submitted successfully!");
+        location.reload();
+      }
+    }
+  </script>
+</body>
+</html>

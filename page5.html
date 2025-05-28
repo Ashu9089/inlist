@@ -1,0 +1,446 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Employee Portal</title>
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+
+  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet"/>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+   <style>
+    html, body { overflow-x: visible; }
+    .combined-shift { background: linear-gradient(135deg, #3B82F6 50%, #EC4899 50%); }
+    .attendance-present { background-color: #10B981; }
+    .attendance-absent { background-color: #EF4444; }
+    .attendance-leave { background-color: #6B7280; }
+    .hide-nav { transform: translateY(100%); transition: transform 0.3s ease-in-out; }
+    .show-nav { transform: translateY(0); transition: transform 0.3s ease-in-out; }/.calendar-cell {
+  padding: 10px;
+  text-align: center;
+  border-radius: 8px;
+  font-weight: bold;
+  color: black; /* default text color */
+}
+
+.night-morning {
+  background: linear-gradient(135deg, #3B82F6 50%, #10B981 50%);
+  color: white !important; /* override text color for gradient */
+}
+
+.emp-header {
+  background-color: #2563eb;         /* Tailwind's bg-blue-600 */
+  color: white;                      /* Tailwind's text-white */
+  padding: 12px 16px;                /* Tailwind's px-4 py-3 */
+  display: flex;                     /* Tailwind's flex */
+  justify-content: space-between;   /* Tailwind's justify-between */
+  align-items: center;              /* Tailwind's items-center */
+  position: sticky;                 /* Tailwind's sticky */
+  top: 0;
+  z-index: 100;                     /* Tailwind's z-50 */
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1); /* shadow-md */
+}
+
+.back-arrow {
+  font-size: 20px;                  /* Tailwind's text-xl */
+  cursor: pointer;
+}
+
+.header-title {
+  font-size: 18px;                  /* Tailwind's text-lg */
+  font-weight: 600;                 /* Tailwind's font-semibold */
+  margin: 0;
+}
+
+.emp-id {
+  font-size: 14px;                  /* Tailwind's text-sm */
+  font-weight: bold;               /* Tailwind's font-bold */
+}
+
+
+  </style>
+</head>
+<body class="bg-gray-50">
+
+  <!-- Header -->
+  <header class="emp-header">
+  <span class="back-arrow" onclick="window.history.back()">←</span>
+  <h1 class="header-title">Notification</h1>
+  <span id="empLabel" class="emp-id"></span>
+</header>
+
+  <!-- Stats Section -->
+  <div class="p-4 bg-white shadow">
+    <div id="shiftStats">
+      <div class="grid grid-cols-7 gap-6 text-center mb-6">
+        <div class="p-2 border-r"><p class="text-gray-500 text-sm">M</p><p class="font-bold text-xl" id="morningCount">0</p></div>
+        <div class="p-2 border-r"><p class="text-gray-500 text-sm">E</p><p class="font-bold text-xl" id="eveningCount">0</p></div>
+        <div class="p-2 border-r"><p class="text-gray-500 text-sm">N</p><p class="font-bold text-xl" id="nightCount">0</p></div>
+        <div class="p-2 border-r"><p class="text-gray-500 text-sm">M+E</p><p class="font-bold text-xl" id="meCount">0</p></div>
+<div class="p-2 border-r"><p class="text-gray-500 text-sm">L</p><p class="font-bold text-xl" id="LeaveCount">0</p></div>
+<div class="p-2 border-r"><p class="text-gray-500 text-sm">WO</p><p class="font-bold text-xl" id="WeeklyOffCount">0</p></div>
+
+
+        <div class="p-2"><p class="text-gray-500 text-sm">N+M</p><p class="font-bold text-xl" id="nmCount">0</p></div>
+         
+
+      </div>
+    </div>
+
+    
+      <div class="flex items-center space-x-2">
+       <button id="resetDate" class="hidden px-2 py-1 text-red-600 rounded-full flex items-center space-x-1">
+  <span class="material-icons">restart_alt</span>
+ 
+</button>
+
+        <select id="monthSelect" class="p-2 border rounded"></select>
+        <select id="yearSelect" class="p-2 border rounded"></select>
+      </div>
+    </div>
+  </div>
+
+  <!-- Calendar -->
+  <div class="p-4">
+    <div class="grid grid-cols-7 gap-1 mb-2 text-center text-sm font-medium">
+      <div>Sun</div><div>Mon</div><div>Tue</div><div>Wed</div><div>Thu</div><div>Fri</div><div>Sat</div>
+    </div>
+    <div id="calendar" class="grid grid-cols-7 gap-1"></div>
+  </div>
+
+  <!-- Legend -->
+ <div class="shift-indicator" style="display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 10px; justify-content: center;">
+  <div class="indicator-item" style="display: flex; align-items: center;">
+    <span style="width: 15px; height: 15px; background: #1033e3; margin-right: 5px; display: inline-block; border-radius: 3px;"></span> Morning
+  </div>
+  <div class="indicator-item" style="display: flex; align-items: center;">
+    <span style="width: 15px; height: 15px; background: #EC4899; margin-right: 5px; display: inline-block; border-radius: 3px;"></span> Evening
+  </div>
+  <div class="indicator-item" style="display: flex; align-items: center;">
+    <span style="width: 15px; height: 15px; background: #10B981; margin-right: 5px; display: inline-block; border-radius: 3px;"></span> Night
+  </div>
+  <div class="indicator-item" style="display: flex; align-items: center;">
+    <span style="width: 15px; height: 15px; background: #802121; margin-right: 5px; display: inline-block; border-radius: 3px;"></span> Night + Morning
+  </div>
+  <div class="indicator-item" style="display: flex; align-items: center;">
+    <span style="width: 15px; height: 15px; background: #d67d29; margin-right: 5px; display: inline-block; border-radius: 3px;"></span> Morning + Evening
+  </div>
+  <div class="indicator-item" style="display: flex; align-items: center;">
+    <span style="width: 15px; height: 15px; background: #38BDF8; margin-right: 5px; display: inline-block; border-radius: 3px;"></span> Weekly Off
+  </div>
+  
+  <div class="indicator-item" style="display: flex; align-items: center;">
+    <span style="width: 15px; height: 15px; background: #6B7280; margin-right: 5px; display: inline-block; border-radius: 3px;"></span> Leave
+  </div>
+  <div class="indicator-item" style="display: flex; align-items: center;">
+    <span style="width: 15px; height: 15px; background: #EF4444; margin-right: 5px; display: inline-block; border-radius: 3px;"></span> Absent
+  </div>
+</div>
+
+
+
+<!-- Shift Change Request Modal -->
+<div id="shiftModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
+  <div class="bg-white p-6 rounded-lg w-80 shadow-lg">
+    <h3 class="text-lg font-semibold mb-2">Request Shift Change</h3>
+    <p id="selectedDateText" class="text-sm text-gray-600 mb-3"></p>
+
+    <label class="block mb-1 text-sm">New Shift</label>
+    <select id="newShift" class="w-full mb-3 p-2 border rounded">
+      <option value="">Select Shift</option>
+      <option value="Morning">Morning</option>
+      <option value="Evening">Evening</option>
+      <option value="Night">Night</option>
+      <option value="Leave">Leave</option>
+      <option value="Off">Off</option>
+    </select>
+
+    <label class="block mb-1 text-sm">Reason (optional)</label>
+    <input type="text" id="shiftReason" class="w-full mb-4 p-2 border rounded" placeholder="Enter reason..." />
+
+    <div class="flex justify-end gap-2">
+      <button id="cancelButton" class="px-4 py-1 bg-gray-200 rounded">Cancel</button>
+
+      <button id="submitShiftBtn" class="px-4 py-1 bg-blue-600 text-white rounded">Submit</button>
+
+    </div>
+  </div>
+</div>
+
+
+
+
+  
+
+  <!-- JavaScript -->
+<script>
+  const { createClient } = supabase;
+  const supabaseClient = createClient(
+    'https://nqbrepbtcacdvatfcqrz.supabase.co',
+    'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5xYnJlcGJ0Y2FjZHZhdGZjcXJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDU5MjgyOTIsImV4cCI6MjA2MTUwNDI5Mn0.2-IdK9Jh3Can-KT2rVUm8SMUt-7BL9OL58unLBtM9AM'
+  );
+// ✅ Step 1: Get emp_id from URL
+const urlParams = new URLSearchParams(window.location.search);
+const empId = urlParams.get('emp_id');
+
+// ✅ Step 2: Check if found
+if (!empId) {
+  alert("Employee ID not found in URL.");
+  window.location.href = "userh.html";
+} else {
+  console.log("Employee ID:", empId); // Optional debug
+}
+
+document.getElementById("empLabel").textContent = empId;
+  document.addEventListener('DOMContentLoaded', function () {
+    const cancelButton = document.getElementById('cancelButton');
+    const modal = document.getElementById('shiftModal');
+
+    if (cancelButton && modal) {
+      cancelButton.addEventListener('click', function () {
+        modal.classList.add('hidden');
+        modal.classList.remove('flex');
+        document.getElementById('newShift').value = '';
+        document.getElementById('shiftReason').value = '';
+        console.log('Modal closed by cancel button.');
+      });
+    }
+
+    function openShiftModal(dateStr) {
+      selectedDate = dateStr;
+      document.getElementById('selectedDateText').textContent = `Selected Date: ${dateStr}`;
+      document.getElementById('shiftModal').classList.remove('hidden');
+      document.getElementById('shiftModal').classList.add('flex');
+    }
+
+    function closeShiftModal() {
+      document.getElementById('shiftModal').classList.add('hidden');
+      document.getElementById('shiftModal').classList.remove('flex');
+      document.getElementById('newShift').value = '';
+      document.getElementById('shiftReason').value = '';
+    }
+
+    async function submitShiftRequest() {
+      const shift = document.getElementById('newShift').value;
+      const reason = document.getElementById('shiftReason').value;
+
+      if (!shift) {
+        alert("Please select a shift.");
+        return;
+      }
+
+      const { data: currentShiftData, error: fetchError } = await supabaseClient
+        .from('shifts')
+        .select('shift_name')
+        .eq('emp_id', empId)
+        .order('shift_date', { ascending: false })
+        .limit(1);
+
+      if (fetchError) {
+        console.error("Error fetching current shift:", fetchError);
+        alert("Error fetching current shift.");
+        return;
+      }
+
+      const currentShift = currentShiftData && currentShiftData[0] ? currentShiftData[0].shift_name : 'No Shift Assigned';
+
+      const { data, error } = await supabaseClient
+        .from('shift_changes')
+        .insert([
+          {
+            emp_id: empId,
+            shift_date: selectedDate,
+            shift_name: shift,
+            current_shift: currentShift,
+            reason: reason,
+            status: 'Pending',
+          }
+        ]);
+
+      if (error) {
+        console.error("Error inserting shift change:", error);
+        alert("Error submitting shift change request.");
+      } else {
+        alert("Shift change request submitted!");
+        closeShiftModal();
+      }
+    }
+
+    document.getElementById('submitShiftBtn').addEventListener('click', async function () {
+      await submitShiftRequest();
+    });
+
+    let currentDate = new Date();
+    let shiftsData = [];
+
+    const monthSelect = document.getElementById('monthSelect');
+    const yearSelect = document.getElementById('yearSelect');
+    const resetDateButton = document.getElementById('resetDate');
+
+    for (let i = 0; i < 12; i++) {
+      const opt = document.createElement('option');
+      opt.value = i;
+      opt.text = new Date(0, i).toLocaleString('default', { month: 'short' });
+      monthSelect.appendChild(opt);
+    }
+
+    const thisYear = new Date().getFullYear();
+    for (let y = thisYear - 2; y <= thisYear + 2; y++) {
+      const opt = document.createElement('option');
+      opt.value = y;
+      opt.text = y;
+      yearSelect.appendChild(opt);
+    }
+
+    monthSelect.value = currentDate.getMonth();
+    yearSelect.value = currentDate.getFullYear();
+
+    async function fetchShifts() {
+      const year = currentDate.getFullYear();
+      const month = currentDate.getMonth();
+      const start = `${year}-${String(month + 1).padStart(2, '0')}-01`;
+      const end = `${year}-${String(month + 1).padStart(2, '0')}-${new Date(year, month + 1, 0).getDate()}`;
+
+      const { data, error } = await supabaseClient
+        .from('shifts')
+        .select('shift_date, shift_name')
+        .eq('emp_id', empId)
+        .gte('shift_date', start)
+        .lte('shift_date', end);
+
+      if (error) {
+        console.error(error);
+      } else {
+        shiftsData = data || [];
+        renderCalendar();
+        countShifts();
+      }
+    }
+
+    function renderCalendar() {
+      const calendar = document.getElementById('calendar');
+      calendar.innerHTML = '';
+      const year = currentDate.getFullYear();
+      const month = currentDate.getMonth();
+      const daysInMonth = new Date(year, month + 1, 0).getDate();
+      const startDay = new Date(year, month, 1).getDay();
+      const today = new Date();
+      const isCurrentMonth = month === today.getMonth() && year === today.getFullYear();
+
+      for (let i = 0; i < startDay; i++) calendar.appendChild(document.createElement('div'));
+
+      for (let day = 1; day <= daysInMonth; day++) {
+        const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+        const shift = shiftsData.find(s => s.shift_date.startsWith(dateStr));
+        const el = document.createElement('div');
+        el.className = 'flex items-center justify-center w-10 h-10 rounded-full cursor-pointer border mx-auto';
+        el.textContent = day;
+
+        if (shift) {
+          el.style.backgroundColor = getShiftColor(shift.shift_name);
+          el.style.color = 'white';
+        }
+
+        el.addEventListener('click', () => openShiftModal(dateStr));
+
+        if (isCurrentMonth && day === today.getDate()) {
+          el.style.border = '2px solid black';
+        }
+
+        calendar.appendChild(el);
+      }
+    }
+function countShifts() {
+  let morning = 0, evening = 0, night = 0, me = 0, nm = 0, l = 0, WO = 0;
+  for (const s of shiftsData) {
+    const shift = s.shift_name;
+
+    if (shift === 'Morning') morning++;
+    else if (shift === 'Evening') evening++;
+    else if (shift === 'Night') night++;
+    else if (
+      shift === 'Morning+Evening' ||
+      shift === 'Evening+Morning'
+    ) me++;
+    else if (
+      shift === 'Night+Morning' ||
+      shift === 'Morning+Night'
+    ) nm++;
+    else if (shift === 'Leave') l++;
+    else if (shift === 'Weekly Off') WO++;
+  }
+
+  document.getElementById('morningCount').textContent = morning;
+  document.getElementById('eveningCount').textContent = evening;
+  document.getElementById('nightCount').textContent = night;
+  document.getElementById('meCount').textContent = me;
+  document.getElementById('nmCount').textContent = nm;
+  document.getElementById('WeeklyOffCount').textContent = WO;
+  document.getElementById('LeaveCount').textContent = l;
+}
+
+
+ function getShiftColor(shift) {
+  const shiftColors = {
+    'Morning': '#1033e3',
+    'Evening': '#EC4899',
+    'Night': '#10B981',
+    'Weekly Off': '#38BDF8',
+    'Leave': '#6B7280',
+    'Absent': '#EF4444'
+  };
+
+  const comboColors = {
+    'Evening+Morning': '#d67d29',
+    'Morning+Night': '#802121',
+    'Evening+Night': '#A855F7'  // optional
+  };
+
+  if (shift.includes('+')) {
+    const parts = shift.split('+').map(s => s.trim());
+    const sortedKey = parts.slice().sort().join('+'); // ensure alphabetical order
+
+    // Check for matching combination color
+    if (comboColors[sortedKey]) {
+      return comboColors[sortedKey];
+    }
+
+    // Fallback: gradient of the two shift colors
+    const colors = parts.map(p => shiftColors[p] || '#ffffff');
+    return `linear-gradient(to right, ${colors.join(', ')})`;
+  }
+
+  // For single shift
+  return shiftColors[shift] || '';
+}
+
+
+    function handleMonthYearChange() {
+      currentDate.setMonth(parseInt(monthSelect.value));
+      currentDate.setFullYear(parseInt(yearSelect.value));
+      resetDateButton.style.display = 'inline-block';
+      fetchShifts();
+    }
+
+    monthSelect.addEventListener('change', handleMonthYearChange);
+    yearSelect.addEventListener('change', handleMonthYearChange);
+
+    resetDateButton.addEventListener('click', function () {
+      currentDate = new Date();
+      monthSelect.value = currentDate.getMonth();
+      yearSelect.value = currentDate.getFullYear();
+      fetchShifts();
+      resetDateButton.style.display = 'none';
+    });
+
+   
+
+    resetDateButton.style.display = 'none';
+    fetchShifts();
+  });
+</script>
+
+
+
+</body>
+ </html>

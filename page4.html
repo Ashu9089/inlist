@@ -1,0 +1,485 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Employee Portal</title>
+  <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet"/>
+   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+  <script src="https://cdn.sheetjs.com/xlsx-0.19.3/package/dist/xlsx.full.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
+  <style>
+    .attendance-present { background-color: #14532d; }
+    .attendance-absent { background-color: #EF4444; }
+    .attendance-late { background-color: #f59e0b; }
+    .attendance-left-early { background-color: #6B7280; }
+    .calendar-cell {
+      width: 40px;
+      height: 40px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 2px;
+      cursor: pointer;
+      border-radius: 8px;
+      font-weight: bold;
+    }
+ .current-date {
+    border: 2px solid #000 !important;
+    box-sizing: border-box;
+  }
+  </style>
+</head>
+<body class="bg-gray-50">
+
+  <!-- Header -->
+  <header class="bg-blue-600 text-white p-4 sticky top-0 shadow-lg">
+    <div class="flex justify-between items-center">
+      <button onclick="window.history.back()" class="text-xl">←</button>
+   
+      <span id="empLabel" class="font-bold">EMP002</span>
+    </div>
+  </header>
+
+  <!-- Stats Grid -->
+  <div class="p-4 bg-white shadow">
+    <div class="grid grid-cols-4 gap-4 text-center mb-4">
+      <div class="p-2 bg-green-100 rounded">
+        <p class="text-xs text-gray-600">Present</p>
+        <p class="font-bold text-xl" id="presentCount">0</p>
+      </div>
+      <div class="p-2 bg-red-100 rounded">
+        <p class="text-xs text-gray-600">Absent</p>
+        <p class="font-bold text-xl" id="absentCount">0</p>
+      </div>
+      <div class="p-2 bg-yellow-100 rounded">
+        <p class="text-xs text-gray-600">Late</p>
+        <p class="font-bold text-xl" id="lateCount">0</p>
+      </div>
+      <div class="p-2 bg-gray-100 rounded">
+        <p class="text-xs text-gray-600">Left Early</p>
+        <p class="font-bold text-xl" id="leftEarlyCount">0</p>
+      </div>
+    </div>
+
+    <!-- Date Controls -->
+    <div class="flex gap-2 mb-4">
+      <select id="monthSelect" class="p-2 border rounded flex-grow"></select>
+      <select id="yearSelect" class="p-2 border rounded flex-grow"></select>
+      <button id="resetDate" class="p-2 bg-blue-600 text-white rounded hidden">Reset</button>
+    </div>
+
+    <!-- Export Buttons -->
+    <div class="flex gap-2">
+      <button id="downloadExcel" class="bg-green-600 text-white p-2 rounded flex items-center gap-1">
+        <span class="material-icons">download</span> Excel
+      </button>
+      <button id="downloadPdf" class="bg-red-600 text-white p-2 rounded flex items-center gap-1">
+        <span class="material-icons">picture_as_pdf</span> PDF
+      </button>
+    </div>
+  </div>
+
+  <!-- Calendar Grid -->
+  <div class="p-4">
+    <div class="grid grid-cols-7 gap-1 mb-2 text-center text-sm font-medium">
+      <div>Sun</div><div>Mon</div><div>Tue</div><div>Wed</div><div>Thu</div><div>Fri</div><div>Sat</div>
+    </div>
+    <div id="calendar" class="grid grid-cols-7 gap-1"></div>
+  </div>
+
+  <!-- Attendance Modal -->
+<div id="attendanceModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center p-4">
+  <div class="bg-white rounded-lg p-6 w-full max-w-sm">
+    <h3 class="text-lg font-semibold mb-4">Update Attendance</h3>
+    
+    <!-- यहाँ नया element जोड़ा गया है -->
+    <p id="selectedDate" class="text-sm text-gray-600 mb-3"></p>
+    
+    <div class="space-y-4">
+      <div>
+        <label class="block text-sm font-medium mb-1">Date</label>
+        <input type="date" id="attendanceDate" class="w-full p-2 border rounded" disabled>
+      </div>
+      <div>
+        <label class="block text-sm font-medium mb-1">Status</label>
+        <select id="attendanceStatus" class="w-full p-2 border rounded">
+          <option value="Present">Present</option>
+          <option value="Absent">Absent</option>
+          <option value="Late">Late</option>
+          <option value="Left Early">Left Early</option>
+        </select>
+      </div>
+      <div class="flex gap-2 justify-end">
+           <button onclick="closeAttendanceModal()" class="px-4 py-2 bg-gray-200 rounded">Cancel</button>
+        <button onclick="saveAttendance()" class="px-4 py-2 bg-blue-600 text-white rounded">Save</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+ const getLocalDateString = (dateString) => {
+  const date = new Date(dateString + 'T00:00:00Z');
+  return date.toLocaleDateString('en-IN', {
+    timeZone: 'Asia/Kolkata',
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric'
+  });
+};
+
+const createUTCDate = (year, month, day) => 
+  new Date(Date.UTC(year, month, day));
+
+// Initialize Supabase
+const supabase = window.supabase.createClient(
+  'https://nqbrepbtcacdvatfcqrz.supabase.co',
+  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5xYnJlcGJ0Y2FjZHZhdGZjcXJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDU5MjgyOTIsImV4cCI6MjA2MTUwNDI5Mn0.2-IdK9Jh3Can-KT2rVUm8SMUt-7BL9OL58unLBtM9AM'
+);
+
+
+
+let userData = {};           // ✅ Global scope में define
+let attendanceData = [];     // ✅ Global scope में define
+
+// ...rest of your code...
+
+
+
+const empId = "EMP002";
+
+// UTC-based current date
+let currentDate = createUTCDate(
+  new Date().getUTCFullYear(),
+  new Date().getUTCMonth(),
+  1
+);
+
+document.addEventListener('DOMContentLoaded', async () => {
+  await loadUserData(); // <-- Add this
+  updateEmployeeHeader(); // Optional: update header if needed
+  await initializeDateControls();
+  await loadData();
+});
+
+
+function isCurrentMonthYear() {
+  const current = new Date();
+  return (
+    parseInt(document.getElementById('monthSelect').value) === current.getUTCMonth() &&
+    parseInt(document.getElementById('yearSelect').value) === current.getUTCFullYear()
+  );
+}
+
+// नया फंक्शन: Reset बटन की visibility अपडेट करे
+function updateResetButtonVisibility() {
+  const resetBtn = document.getElementById('resetDate');
+  resetBtn.classList.toggle('hidden', isCurrentMonthYear());
+}
+
+// Date controls में बदलाव सुनें
+document.getElementById('monthSelect').addEventListener('change', () => {
+  updateResetButtonVisibility();
+  loadData();
+});
+
+document.getElementById('yearSelect').addEventListener('change', () => {
+  updateResetButtonVisibility();
+  loadData();
+});
+
+// Reset बटन का हैंडलर
+document.getElementById('resetDate').addEventListener('click', () => {
+  const current = new Date();
+  document.getElementById('monthSelect').value = current.getUTCMonth();
+  document.getElementById('yearSelect').value = current.getUTCFullYear();
+  currentDate = createUTCDate(current.getUTCFullYear(), current.getUTCMonth(), 1);
+  updateResetButtonVisibility();
+  loadData();
+});
+
+
+
+
+async function initializeDateControls() {
+  const monthSelect = document.getElementById('monthSelect');
+  const yearSelect = document.getElementById('yearSelect');
+  
+  // Populate months with UTC
+  const formatter = new Intl.DateTimeFormat('en-US', { 
+    month: 'short', 
+    timeZone: 'UTC' 
+  });
+  Array.from({length: 12}).forEach((_,i) => {
+    const date = createUTCDate(2023, i, 1);
+    monthSelect.innerHTML += `<option value="${i}">${formatter.format(date)}</option>`;
+  });
+
+  // Populate years
+  const currentYear = new Date().getUTCFullYear();
+  for(let y=currentYear-2; y<=currentYear+2; y++) {
+    yearSelect.innerHTML += `<option value="${y}">${y}</option>`;
+  }
+
+  // Set initial values
+  monthSelect.value = currentDate.getUTCMonth();
+  yearSelect.value = currentDate.getUTCFullYear();
+
+  // Event handlers
+  const updateDate = () => {
+    currentDate = createUTCDate(
+      parseInt(yearSelect.value),
+      parseInt(monthSelect.value),
+      1
+    );
+    loadData();
+  };
+  
+  monthSelect.addEventListener('change', updateDate);
+  yearSelect.addEventListener('change', updateDate);
+}
+
+async function loadUserData() {
+  try {
+    const { data, error } = await supabase
+      .from('users')
+      .select('name, department')
+      .eq('emp_id', empId)
+      .single();
+
+    if (error) throw error;
+    userData = data;
+  } catch (error) {
+    console.error('Error loading user data:', error);
+    userData = {};
+  }
+}
+
+function updateEmployeeHeader() {
+  const empLabel = document.getElementById('empLabel');
+  if (userData.name) {
+    empLabel.textContent = `${userData.name} (${empId})`;
+  } else {
+    empLabel.textContent = empId;
+  }
+}
+
+
+async function loadData() {
+  const start = createUTCDate(
+    currentDate.getUTCFullYear(),
+    currentDate.getUTCMonth(),
+    1
+  );
+  
+  const end = createUTCDate(
+    currentDate.getUTCFullYear(),
+    currentDate.getUTCMonth() + 1,
+    0
+  );
+
+  const { data, error } = await supabase
+    .from('attendance')
+    .select('date, status, punch_in, punch_out')
+    .eq('emp_id', empId)
+    .gte('date', start.toISOString().split('T')[0])
+    .lte('date', end.toISOString().split('T')[0]);
+
+  if(!error) {
+    attendanceData = data;
+    renderCalendar();
+    updateStats();
+  }
+}
+
+function renderCalendar() {
+  const calendar = document.getElementById('calendar');
+  calendar.innerHTML = '';
+  
+  const year = currentDate.getUTCFullYear();
+  const month = currentDate.getUTCMonth();
+  const today = new Date(); // आज की तारीख
+  const todayString = today.toISOString().split('T')[0]; // YYYY-MM-DD format
+
+  const firstDay = createUTCDate(year, month, 1).getUTCDay();
+  const daysInMonth = createUTCDate(year, month + 1, 0).getUTCDate();
+
+  calendar.innerHTML = Array(firstDay).fill('<div class="calendar-cell"></div>').join('');
+
+  for(let day=1; day<=daysInMonth; day++) {
+    const date = createUTCDate(year, month, day);
+    const dateString = date.toISOString().split('T')[0];
+    const attendance = attendanceData.find(a => a.date === dateString);
+    const isToday = dateString === todayString; // ✅ Current date check
+
+    const cell = document.createElement('div');
+    cell.className = `calendar-cell 
+      ${isToday ? 'current-date' : ''}
+      ${attendance ? `attendance-${attendance.status.toLowerCase().replace(' ','-')}` : ''}`;
+      
+    cell.textContent = day;
+    cell.title = attendance ? `Attendance: ${attendance.status}` : '';
+    
+    cell.onclick = () => openAttendanceModal(dateString);
+    
+    calendar.appendChild(cell);
+  }
+}
+// Modal elements को पहले ही select कर लें
+const attendanceModal = document.getElementById('attendanceModal');
+const attendanceDateInput = document.getElementById('attendanceDate');
+const attendanceStatusSelect = document.getElementById('attendanceStatus');
+const selectedDateSpan = document.getElementById('selectedDate');
+
+function openAttendanceModal(dateString) {
+  try {
+    // Null check जोड़ें
+    if (!attendanceModal || !attendanceDateInput || !attendanceStatusSelect || !selectedDateSpan) {
+      throw new Error('Modal elements not found');
+    }
+
+    // Date validation
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(dateString)) {
+      throw new Error('Invalid date format');
+    }
+
+    attendanceModal.classList.remove('hidden');
+    attendanceDateInput.value = dateString;
+    selectedDateSpan.textContent = getLocalDateString(dateString);
+
+    // Current status सेट करें
+    const attendance = attendanceData.find(a => a.date === dateString);
+    attendanceStatusSelect.value = attendance?.status || 'Present';
+
+  } catch (error) {
+    console.error('Error opening modal:', error);
+    alert('Error opening attendance modal');
+  }
+}
+
+async function saveAttendance() {
+  try {
+    // Input validation
+    const date = attendanceDateInput.value;
+    const status = attendanceStatusSelect.value;
+
+    if (!date || !status) {
+      throw new Error('Date and status are required');
+    }
+
+    // Save to Supabase
+    const { error } = await supabase
+      .from('attendance')
+      .upsert(
+        { 
+          emp_id: empId, 
+          date: new Date(date).toISOString().split('T')[0], // ISO format ensure
+          status 
+        },
+        { onConflict: ['emp_id', 'date'] }
+      );
+
+    if (error) throw error;
+
+    // Refresh data और modal बंद करें
+    await loadData();
+    closeAttendanceModal();
+
+  } catch (error) {
+    console.error('Save error:', error);
+    alert(`Save failed: ${error.message}`);
+  }
+}
+
+// Modal बंद करने का अलग function
+function closeAttendanceModal() {
+  if (attendanceModal) {
+    attendanceModal.classList.add('hidden');
+  }
+}
+function updateStats() {
+  const stats = {
+    Present: 0,
+    Absent: 0,
+    Late: 0,
+    'Left Early': 0
+  };
+
+  attendanceData.forEach(record => {
+    stats[record.status]++;
+  });
+
+  document.getElementById('presentCount').textContent = stats.Present;
+  document.getElementById('absentCount').textContent = stats.Absent;
+  document.getElementById('lateCount').textContent = stats.Late;
+  document.getElementById('leftEarlyCount').textContent = stats['Left Early'];
+}
+
+// Export Functions
+document.getElementById('downloadExcel').addEventListener('click', exportExcel);
+document.getElementById('downloadPdf').addEventListener('click', exportPDF);
+
+function exportExcel() {
+  if (!userData.name || !userData.department) {
+    alert('Employee details not available. Please try again.');
+    return;
+  }
+
+  const data = attendanceData.map(record => ({
+    Date: record.date,
+    Status: record.status,
+    'Employee Name': userData.name,
+    Department: userData.department,
+    'Punch In': record.punch_in || 'N/A',
+    'Punch Out': record.punch_out || 'N/A',
+    'Employee ID': empId
+  }));
+
+  const ws = XLSX.utils.json_to_sheet(data);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, "Attendance");
+  XLSX.writeFile(wb, `attendance_${empId}.xlsx`);
+}
+
+function exportPDF() {
+  if (!userData.name || !userData.department) {
+    alert('Employee details not available. Please try again.');
+    return;
+  }
+
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF();
+  
+  doc.setFontSize(16);
+  doc.text(`Attendance Report - ${userData.name}`, 14, 15);
+  doc.setFontSize(12);
+  doc.text(`Employee ID: ${empId}`, 14, 22);
+  doc.text(`Department: ${userData.department}`, 14, 29);
+  
+  const headers = [["Date", "Status", "Punch In", "Punch Out"]];
+  const rows = attendanceData.map(record => [
+    record.date,
+    record.status,
+    record.punch_in || 'N/A',
+    record.punch_out || 'N/A'
+  ]);
+
+  doc.autoTable({
+    head: headers,
+    body: rows,
+    startY: 35,
+    theme: 'grid',
+    styles: { fontSize: 10 },
+   headStyles: { fillColor: [22, 160, 133] }
+  });
+
+  doc.save(`attendance_${empId}.pdf`);
+}
+</script>
+
+</body>
+</html> 

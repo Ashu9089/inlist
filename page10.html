@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Overtime Request</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    header {
+      position: fixed;
+      top: 0;
+      width: 100%;
+      z-index: 50;
+    }
+    main {
+      margin-top: 70px;
+    }
+  </style>
+</head>
+<body class="bg-gray-100 text-gray-800">
+
+  <!-- Top Bar -->
+  <header class="bg-blue-600 text-white px-4 py-3 flex items-center justify-between">
+    <span onclick="window.history.back()" class="cursor-pointer text-xl">←</span>
+    <h1 class="text-lg font-semibold">Overtime Request</h1>
+    <span id="empLabel" class="text-sm font-bold"></span>
+  </header>
+
+  <!-- Form Section -->
+  <main class="p-4" id="formContainer">
+    <!-- Form Row Template -->
+    <div class="form-row mb-4 border border-gray-300 p-4 rounded-md bg-white">
+      <label class="block mb-1">Date:</label>
+      <input type="date" class="dateInput w-full border p-2 rounded mb-2" onchange="loadShift(this)" />
+
+      <p class="shiftDisplay text-sm text-gray-600 mb-2">Shift: <span>--</span></p>
+
+      <div class="flex gap-4 mb-2">
+        <div class="flex-1">
+          <label>Start Hour:</label>
+          <input type="time" class="startHour w-full border p-2 rounded" />
+        </div>
+        <div class="flex-1">
+          <label>End Hour:</label>
+          <input type="time" class="endHour w-full border p-2 rounded" onchange="calculateTotal(this)" />
+        </div>
+      </div>
+
+      <p class="totalHours mb-2 text-sm font-semibold">Total Hours: <span>0</span></p>
+
+      <label>Reason:</label>
+      <textarea class="reason w-full border p-2 rounded"></textarea>
+      
+      <!-- Error message for duplicate entry -->
+      <p class="duplicate-error text-red-500 text-sm mt-2 hidden">⚠️ You already have an OT request for this date</p>
+    </div>
+  </main>
+
+  <!-- Buttons -->
+  <div class="flex justify-between p-4">
+    <button onclick="addMore()" class="bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded">➕ Add More</button>
+    <button onclick="submitOvertime()" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded">✅ Submit</button>
+  </div>
+
+  <script>
+    const empId = new URLSearchParams(window.location.search).get("emp_id") || "EMP001";
+    document.getElementById("empLabel").textContent = empId;
+
+    // ✅ Correctly initialize Supabase client
+    const { createClient } = supabase;
+    const supabaseClient = createClient(
+      'https://nqbrepbtcacdvatfcqrz.supabase.co',
+      'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5xYnJlcGJ0Y2FjZHZhdGZjcXJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDU5MjgyOTIsImV4cCI6MjA2MTUwNDI5Mn0.2-IdK9Jh3Can-KT2rVUm8SMUt-7BL9OL58unLBtM9AM'
+    );
+
+    // Load shift from Supabase
+    async function loadShift(dateInput) {
+      const row = dateInput.closest(".form-row");
+      const shiftSpan = row.querySelector(".shiftDisplay span");
+      const date = dateInput.value;
+      
+      // Hide any previous duplicate error
+      row.querySelector(".duplicate-error").classList.add("hidden");
+
+      const { data, error } = await supabaseClient
+        .from("shifts")
+        .select("shift_name")
+        .eq("emp_id", empId)
+        .eq("shift_date", date)
+        .single();
+
+      if (error) {
+        console.error("Shift fetch error:", error.message);
+        shiftSpan.textContent = "Not Assigned";
+      } else {
+        shiftSpan.textContent = data?.shift_name || "Not Assigned";
+      }
+      
+      // Check if OT request already exists for this date
+      await checkDuplicateOT(row, date);
+    }
+    
+    // Check if OT request already exists for this employee and date
+    async function checkDuplicateOT(row, date) {
+      if (!date) return;
+      
+      const { data, error } = await supabaseClient
+        .from("ot_request")
+        .select("ot_date")
+        .eq("emp_id", empId)
+        .eq("ot_date", date)
+        .maybeSingle();
+      
+      if (error) {
+        console.error("Duplicate check error:", error.message);
+        return;
+      }
+      
+      if (data) {
+        row.querySelector(".duplicate-error").classList.remove("hidden");
+        return true;
+      }
+      return false;
+    }
+
+    // Calculate total hours
+    function calculateTotal(endInput) {
+      const row = endInput.closest(".form-row");
+      const start = row.querySelector(".startHour").value;
+      const end = row.querySelector(".endHour").value;
+      const totalSpan = row.querySelector(".totalHours span");
+
+      if (start && end) {
+        const startDate = new Date(`1970-01-01T${start}`);
+        const endDate = new Date(`1970-01-01T${end}`);
+        let diff = (endDate - startDate) / (1000 * 60 * 60);
+        if (diff < 0) diff += 24; // Overnight shift
+        totalSpan.textContent = diff.toFixed(2);
+      }
+    }
+
+    // Add more form rows
+    function addMore() {
+      const container = document.getElementById("formContainer");
+      const original = container.querySelector(".form-row");
+      const clone = original.cloneNode(true);
+
+      // Reset fields
+      clone.querySelector(".dateInput").value = "";
+      clone.querySelector(".shiftDisplay span").textContent = "--";
+      clone.querySelector(".startHour").value = "";
+      clone.querySelector(".endHour").value = "";
+      clone.querySelector(".totalHours span").textContent = "0";
+      clone.querySelector(".reason").value = "";
+      clone.querySelector(".duplicate-error").classList.add("hidden");
+
+      // Rebind event listeners
+      clone.querySelector(".dateInput").onchange = function () { loadShift(this); };
+      clone.querySelector(".endHour").onchange = function () { calculateTotal(this); };
+
+      container.appendChild(clone);
+    }
+
+    // Submit form data to Supabase
+    async function submitOvertime() {
+      const rows = document.querySelectorAll(".form-row");
+      const entries = [];
+      let hasDuplicates = false;
+
+      // First check all rows for duplicates
+      for (const row of rows) {
+        const date = row.querySelector(".dateInput").value;
+        if (!date) continue;
+        
+        const isDuplicate = await checkDuplicateOT(row, date);
+        if (isDuplicate) {
+          hasDuplicates = true;
+        }
+      }
+      
+      if (hasDuplicates) {
+        alert("⚠️ You already have OT requests for some of these dates. Please remove duplicate entries.");
+        return;
+      }
+
+      // Process valid entries
+      for (const row of rows) {
+        const date = row.querySelector(".dateInput").value;
+        const shift = row.querySelector(".shiftDisplay span").textContent;
+        const start = row.querySelector(".startHour").value;
+        const end = row.querySelector(".endHour").value;
+        const total = parseFloat(row.querySelector(".totalHours span").textContent || "0");
+        const reason = row.querySelector(".reason").value;
+
+        if (date && start && end && reason) {
+          entries.push({
+            emp_id: empId,
+            ot_date: date,
+            shift_name: shift,
+            from_hour: start,
+            to_hour: end,
+            total_hours: total,
+            reason: reason,
+            status: "pending"
+          });
+        }
+      }
+
+      if (entries.length === 0) {
+        alert("⚠️ Please fill at least one OT entry.");
+        return;
+      }
+
+      const { error } = await supabaseClient.from("ot_request").insert(entries);
+      if (error) {
+        console.error("Error submitting overtime:", error.message);
+        alert("❌ Submission error: " + error.message);
+      } else {
+        alert("✅ Overtime request submitted!");
+        location.reload();
+      }
+    }
+  </script>
+</body>
+</html>

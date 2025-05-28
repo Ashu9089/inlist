@@ -1,0 +1,560 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Request Approval System</title>
+ <style>
+   /* Simple reset & base */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+body {
+  background-color: #f5f7fa;
+  color: #333;
+  padding: 20px;
+}
+
+/* Title Bar */
+.top-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background-color: #2c3e50;   /* गहरा नीला रंग */
+  padding: 12px 20px;
+  border-radius: 6px;
+  box-shadow: 0 3px 6px rgba(0,0,0,0.16);
+  color: white;
+  user-select: none;
+}
+
+.top-bar button {
+  font-size: 22px;
+  cursor: pointer;
+  background: none;
+  border: none;
+  color: white;
+  transition: color 0.3s ease;
+}
+.top-bar button:hover {
+  color: #1abc9c;  /* हल्का हरा हावर इफ़ेक्ट */
+}
+
+.top-bar h1 {
+  font-size: 24px;
+  font-weight: 700;
+  color: white;
+  margin: 0;
+  flex-grow: 1;
+  text-align: center;
+  user-select: none;
+}
+
+.top-bar span {
+  font-weight: 600;
+  font-size: 16px;
+  color: #1abc9c;  /* हरा कलर */
+  user-select: none;
+}
+
+/* Dropdowns */
+.filters {
+  display: flex;
+  gap: 20px;
+  margin-bottom: 20px;
+  padding: 10px 0;
+}
+
+.filters select {
+  padding: 8px 12px;
+  font-size: 15px;
+  border-radius: 6px;
+  border: 1.5px solid #ccc;
+  cursor: pointer;
+  transition: border-color 0.3s ease, box-shadow 0.3s ease;
+  min-width: 180px;
+  background-color: white;
+  color: #2c3e50;
+  appearance: none; /* Remove default arrow */
+  background-image: url("data:image/svg+xml;charset=US-ASCII,%3csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3e%3cpath fill='%23666' d='M0 0l5 6 5-6z'/%3e%3c/svg%3e");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  background-size: 10px 6px;
+}
+
+.filters select:focus {
+  border-color: #1abc9c;
+  box-shadow: 0 0 6px #1abc9c88;
+  outline: none;
+}
+
+/* Requests list */
+.request-list {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  min-height: 200px;
+}
+.request-card {
+  background: white;
+  border-radius: 8px;
+  padding: 15px;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+  border-left: 5px solid #3498db;
+}
+.request-header {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+.emp-name {
+  font-weight: 600;
+  font-size: 16px;
+  color: #2c3e50;
+}
+.emp-id {
+  font-size: 13px;
+  color: #7f8c8d;
+}
+.request-type {
+  font-size: 13px;
+  padding: 3px 10px;
+  border-radius: 15px;
+  font-weight: 500;
+  background-color: #e3f2fd;
+  color: #1976d2;
+  align-self: center;
+}
+.request-details {
+  margin: 8px 0;
+  font-size: 14px;
+  color: #555;
+}
+.request-date {
+  font-size: 12px;
+  color: #95a5a6;
+  margin-bottom: 10px;
+}
+.action-buttons {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+.btn {
+  padding: 8px 16px;
+  border-radius: 5px;
+  border: none;
+  background-color: #3498db;
+  color: white;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+.btn:hover {
+  background-color: #2980b9;
+}
+
+/* Status styles */
+.status {
+  font-size: 13px;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 15px;
+  text-transform: capitalize;
+}
+.status-pending {
+  background-color: #fff3e0;
+  color: #ff9800;
+}
+.status-approved {
+  background-color: #e8f5e9;
+  color: #388e3c;
+}
+.status-rejected {
+  background-color: #ffebee;
+  color: #d32f2f;
+}
+
+/* Type border colors */
+.leave { border-left-color: #3498db; }
+.overtime { border-left-color: #e67e22; }
+.shift-change { border-left-color: #9b59b6; }
+.exchange-duty { border-left-color: #1abc9c; }
+.announcement { border-left-color: #34495e; }
+#topBar {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  background-color: #2c3e50; /* वही गहरा नीला */
+}
+
+
+#filterSection {
+  position: sticky;
+  top: 3.5rem;
+  z-index: 40;
+  background-color: white;
+}
+
+
+  </style>
+</head>
+<body>
+
+  <!-- ✅ Top Bar with ID -->
+<div id="topBar" class="top-bar flex justify-between items-center p-4 bg-gray-100 shadow mb-2">
+ <span onclick="window.history.back()" class="cursor-pointer text-xl">←</span>
+  <h1 class="text-lg font-semibold">Notification</h1>
+   <span id="empLabel" class="text-sm font-bold"></span>
+</div>
+
+<!-- ✅ Filters with ID -->
+<div id="filterSection" class="filters flex justify-between items-center px-4 py-2 bg-white shadow-sm mb-4">
+  <select id="typeFilter" class="border p-1 rounded">
+    <option value="all">All Types</option>
+    <option value="leave">Leave</option>
+    <option value="overtime">Overtime</option>
+    <option value="exchange-duty">Exchange Duty</option>
+    <option value="announcement">Announcement</option>
+    <option value="shift-change">Shift Change</option>
+    <option value="accept-duty">Accept Duty</option>
+  </select>
+
+  <select id="statusFilter" class="border p-1 rounded">
+    <option value="all">All Status</option>
+    <option value="pending">Pending</option>
+    <option value="approved">Approved</option>
+    <option value="rejected">Rejected</option>
+  </select>
+</div>
+
+  <!-- Request List Container -->
+  <div class="request-list" id="requestList">
+    Loading requests...
+  </div>
+</body>
+
+  <!-- jsPDF for PDF generation -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <!-- Supabase JS -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+
+  <script>
+const empId = new URLSearchParams(window.location.search).get("emp_id") || "EMP001";
+    document.getElementById("empLabel").textContent = empId;
+    const { jsPDF } = window.jspdf;
+
+    // Initialize Supabase client - apna details yahan dalein
+    const supabaseUrl = 'https://nqbrepbtcacdvatfcqrz.supabase.co';
+    const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5xYnJlcGJ0Y2FjZHZhdGZjcXJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDU5MjgyOTIsImV4cCI6MjA2MTUwNDI5Mn0.2-IdK9Jh3Can-KT2rVUm8SMUt-7BL9OL58unLBtM9AM';
+   const supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
+
+
+
+
+document.getElementById('typeFilter').addEventListener('change', applyFilters);
+document.getElementById('statusFilter').addEventListener('change', applyFilters);
+
+const PAGE_SIZE = 50;  // ek baar mein kitne record load karne hain
+let currentPage = 0;   // current page index
+let allRequests = [];  // ab tak load hue records
+let isFetching = false; // data fetch ho raha hai ya nahi
+
+
+
+
+async function loadAndRenderRequests(emp_id) {
+  const requests = await fetchDataForEmp(empId);
+  if (requests) {
+    allRequests = requests.sort((a,b) => new Date(b.date) - new Date(a.date));
+    renderRequests(allRequests);
+  }
+}
+
+
+function applyFilters() {
+  const type = document.getElementById('typeFilter').value;
+  const status = document.getElementById('statusFilter').value;
+
+  let filtered = allRequests;
+
+  if (type !== 'all') filtered = filtered.filter(r => r.type === type);
+  if (status !== 'all') filtered = filtered.filter(r => r.status === status);
+
+  renderRequests(filtered);
+}
+
+// पेज लोड पर data लोड करें
+loadAndRenderRequests('empId');
+
+// Fetch all requests for an employee, including approved_by_emp_id
+async function fetchDataForEmp(empId = 'empId', page = 0) {
+  const from = page * PAGE_SIZE;
+  const to = from + PAGE_SIZE - 1;
+
+  // User fetch (same)
+  const { data: userData, error: userError } = await supabase
+    .from('users')
+    .select('emp_id, name')
+    .eq('emp_id', empId)
+    .single();
+
+  if (userError || !userData) {
+    console.error('User fetch error:', userError);
+    return null;
+  }
+
+   // Leave requests with pagination
+  const { data: leaveData } = await supabase
+    .from('leave_requests')
+    .select('*')
+    .eq('emp_id', empId)
+    .range(from, to);
+
+  // OT requests with pagination
+  const { data: otData } = await supabase
+    .from('ot_request')
+    .select('*')
+    .eq('emp_id', empId)
+    .range(from, to);
+
+  // Exchange duty requests with pagination
+  const { data: exchangeData } = await supabase
+    .from('exchange_duty')
+    .select('*')
+    .eq('exchange_emp_id', empId)
+    .range(from, to);
+
+  // Shift changes with pagination
+  const { data: shiftData } = await supabase
+    .from('shift_changes')
+    .select('*')
+    .eq('emp_id', empId)
+    .range(from, to);
+
+  const combinedRequests = [];
+
+  leaveData?.forEach(item => {
+  let rejoinDate = ''; // 🛠️ Safe default value
+
+  if (item.to_date) {
+    const toDate = new Date(item.to_date);
+    if (!isNaN(toDate)) {
+      toDate.setDate(toDate.getDate() + 1);
+      rejoinDate = toDate.toISOString().split('T')[0]; // Format YYYY-MM-DD
+    }
+  }
+
+  combinedRequests.push({
+    id: item.id,
+    empId: item.emp_id,
+    empName: userData.name,
+    type: 'leave',
+    typeText: 'Leave Request',
+    details: item.reason || 'No details provided',
+    date: item.created_at || '',
+    fromDate: item.from_date || '',
+    toDate: item.to_date || '',
+    totalDays: item.total_days || '',
+    rejoinDate: rejoinDate, // ✅ Now it's always defined
+    approvedBy: item.approved_by_emp_id || '',
+    status: item.status || 'pending'
+  });
+});
+
+
+  otData?.forEach(item => {
+    combinedRequests.push({
+      id: item.id,
+      empId: item.emp_id,
+      empName: userData.name,
+      type: 'overtime',
+      typeText: 'Overtime Request',
+      details: item.reason || 'No details provided',
+      date: item.created_at || '',
+      otDate: item.ot_date || '',
+      startTime: item.from_hour || '',
+      endTime: item.to_hour || '',
+      totalHours: item.total_hours || '',
+      approvedBy: item.approved_by_emp_id || '',
+      status: item.status || 'pending'
+    });
+  });
+
+  exchangeData?.forEach(item => {
+    combinedRequests.push({
+      id: item.id,
+      empId: item.exchange_emp_id,
+      empName: userData.name,
+      type: 'exchange-duty',
+      typeText: 'Exchange Duty Request',
+      details: item.reason || 'No details provided',
+      date: item.create_at || '',
+      status: item.status || 'pending'
+    });
+  });
+
+
+
+
+
+
+
+  shiftData?.forEach(item => {
+    combinedRequests.push({
+      id: item.id,
+      empId: item.emp_id,
+      empName: userData.name,
+      type: 'shift-change',
+      typeText: 'Shift Change Request',
+      details: item.details || 'No details provided',
+      date: item.created_at || '',
+      status: item.status || 'pending'
+    });
+  });
+
+  combinedRequests.sort((a, b) => new Date(b.date) - new Date(a.date));
+  return combinedRequests;
+}
+
+
+function formatRelativeTime(dateString) {
+  if (!dateString) return '';
+  const date = new Date(dateString);
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+  if (diffMs < 0) return 'in the future';
+  const seconds = Math.floor(diffMs / 1000);
+  if (seconds < 60) return `${seconds} second${seconds !== 1 ? 's' : ''} ago`;
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return `${minutes} minute${minutes !== 1 ? 's' : ''} ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours} hour${hours !== 1 ? 's' : ''} ago`;
+  const days = Math.floor(hours / 24);
+  if (days < 30) return `${days} day${days !== 1 ? 's' : ''} ago`;
+  const months = Math.floor(days / 30);
+  if (months < 12) return `${months} month${months !== 1 ? 's' : ''} ago`;
+  const years = Math.floor(months / 12);
+  return `${years} year${years !== 1 ? 's' : ''} ago`;
+}
+function renderRequests(requests) {
+  const requestList = document.getElementById('requestList');
+  requestList.innerHTML = '';  // purane items clear karna
+
+  if (!requests || requests.length === 0) {
+    requestList.innerHTML = '<p style="text-align:center; color:#95a5a6;">No requests found for EMP002</p>';
+    return;
+  }
+
+  requests.forEach(request => {
+    const statusClass = `status-${request.status}`;
+    const statusText = request.status.charAt(0).toUpperCase() + request.status.slice(1);
+    const showPdfButton = request.status === 'approved' && (request.type === 'leave' || request.type === 'overtime');
+    const relativeTime = formatRelativeTime(request.date);
+
+    const card = document.createElement('div');
+    card.className = `request-card ${request.type}`;
+    card.innerHTML = `
+      <div class="request-header">
+        <div><div class="emp-name">${request.empName}</div><div class="emp-id">${request.empId}</div></div>
+        <div class="request-type">${request.typeText}</div>
+      </div>
+      <div class="request-details">${request.details}</div>
+      <div class="request-date">Requested: ${relativeTime}</div>
+      <div class="action-buttons">
+        <span class="status ${statusClass}">${statusText}</span>
+        ${showPdfButton ? `<button class="btn" onclick="downloadPDF(${JSON.stringify(request).replace(/"/g, '&quot;')})">Download PDF</button>` : ''}
+      </div>
+    `;
+    requestList.appendChild(card);
+  });
+}
+
+
+
+window.addEventListener('scroll', async () => {
+  if (isFetching) return;
+
+  if ((window.innerHeight + window.scrollY) >= document.body.offsetHeight - 100) {
+    isFetching = true;
+    currentPage++;
+    const newRequests = await fetchDataForEmp('EMP002', currentPage);
+    if (newRequests && newRequests.length > 0) {
+      allRequests = allRequests.concat(newRequests);
+      allRequests.sort((a, b) => new Date(b.date) - new Date(a.date));
+      renderRequests(allRequests);
+    }
+    isFetching = false;
+  }
+});
+
+async function downloadPDF(request) {
+  const doc = new jsPDF();
+  doc.setFontSize(18);
+  doc.text("CYGNUS LAXMI HOSPITAL (A UNIT OF MADICARE PVT. LTD)", 20, 20);
+  doc.setFontSize(14);
+  doc.text(`${request.typeText} Summary`, 20, 35);
+
+  doc.setFontSize(12);
+  doc.text(`Employee Name: ${request.empName}`, 20, 50);
+  doc.text(`Employee ID: ${request.empId}`, 20, 58);
+
+  if (request.type === 'leave') {
+    doc.text(`From: ${request.fromDate}`, 20, 70);
+    doc.text(`To: ${request.toDate}`, 20, 78);
+    doc.text(`Total Days: ${request.totalDays}`, 20, 86);
+    doc.text(`Rejoining Date: ${request.rejoinDate}`, 20, 94);
+
+
+
+    doc.text(`Reason: ${request.details}`, 20, 102);
+  } else if (request.type === 'overtime') {
+    doc.text(`Date: ${request.otDate}`, 20, 70);
+    doc.text(`Start Time: ${request.startTime}`, 20, 78);
+    doc.text(`End Time: ${request.endTime}`, 20, 86);
+    doc.text(`Total Hours: ${request.totalHours}`, 20, 94);
+    doc.text(`Reason: ${request.details}`, 20, 102);
+  }
+
+
+  // Fetch approver info
+  if (request.approvedBy) {
+    const { data: approverData } = await supabase
+      .from('users')
+      .select('name, designation, department')
+      .eq('emp_id', request.approvedBy)
+      .single();
+
+    if (approverData) {
+      doc.setFontSize(12);
+      doc.text("Approved By:", 130, 150);
+      doc.text(`${approverData.name}`, 130, 158);
+      doc.text(`${approverData.designation}`, 130, 166);
+      doc.text(`${approverData.department}`, 130, 174);
+
+      const stampImg = new Image();
+      stampImg.src = 'https://res.cloudinary.com/ashu0926/image/upload/v1747466341/Approved-Green-Stamp-PNG-High-Quality-Image_k7xtls.png'; // stamp image (transparent background)
+      stampImg.onload = () => {
+        doc.addImage(stampImg, 'PNG', 145, 135, 30, 30); // stamp above approver
+        doc.save(`${request.type}_${request.empId}.pdf`);
+      };
+    } else {
+      doc.save(`${request.type}_${request.empId}.pdf`);
+    }
+  } else {
+    doc.save(`${request.type}_${request.empId}.pdf`);
+  }
+}
+
+// Fetch and render data
+fetchDataForEmp('EMP002').then(renderRequests);
+
+
+  </script>
+</body>
+</html>
+

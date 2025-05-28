@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>🔐 Secure Login</title>
+  <link rel="stylesheet" href="style.css" />
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    /* Basic Reset */
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Poppins', sans-serif;
+      background: linear-gradient(120deg, #1a2a6c, #b21f1f, #fdbb2d);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    .background {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: url('https://www.lystloc.com/blog/wp-content/uploads/2022/11/ezgif.com-gif-maker-6.webp') no-repeat center right/cover;
+      opacity: 0.2;
+      z-index: 0;
+    }
+
+    .login-box,
+    .reset-password-box {
+      z-index: 2;
+      background: rgba(255, 255, 255, 0.15);
+      backdrop-filter: blur(12px);
+      border-radius: 20px;
+      padding: 35px 30px;
+      width: 100%;
+      max-width: 350px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+      color: #fff;
+      text-align: center;
+      display: none;
+    }
+
+    .login-box {
+      display: block;
+    }
+
+    h2 {
+      font-size: 24px;
+      margin-bottom: 10px;
+    }
+
+    .desc {
+      font-size: 14px;
+      margin-bottom: 20px;
+      color: #eee;
+    }
+
+    select, input {
+      width: 100%;
+      padding: 12px;
+      margin-bottom: 15px;
+      border: none;
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.9);
+      color: #000;
+      font-size: 14px;
+    }
+
+    .buttons {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+    }
+
+    .btn {
+      flex: 1;
+      padding: 12px;
+      border: none;
+      border-radius: 8px;
+      font-weight: bold;
+      cursor: pointer;
+      transition: 0.3s;
+    }
+
+    .btn.login {
+      background-color: #00c853;
+      color: #fff;
+    }
+
+    .btn.login:hover {
+      background-color: #008C4E;
+    }
+
+    .btn.reset-password {
+      background-color: #2196f3;
+      color: #fff;
+    }
+
+    .btn.cancel {
+      background-color: #f44336;
+      color: #fff;
+    }
+
+    .forgot-password {
+      margin-top: 10px;
+      font-size: 14px;
+    }
+
+    .forgot-password a {
+      color: #00c853;
+      text-decoration: none;
+    }
+
+    .forgot-password a:hover {
+      text-decoration: underline;
+    }
+
+    .footer {
+      margin-top: 20px;
+      font-size: 12px;
+      text-align: center;
+      color: #ddd;
+    }
+
+    .message {
+      color: #00c853;
+      font-size: 16px;
+      margin-top: 15px;
+    }
+
+    @media (max-width: 600px) {
+      .login-box, .reset-password-box {
+        width: 90%;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="background"></div>
+
+  <!-- Login Form -->
+  <div class="login-box" id="loginBox">
+    <h2>🔒 Inlist</h2>
+    <p class="desc">Attendance & Shift Management</p>
+
+    <label>Login Type</label>
+    <select id="loginType">
+      <option value="user">User</option>
+      <option value="admin">Admin</option>
+      <option value="developer">Developer</option>
+    </select>
+
+    <input type="text" id="username" placeholder="Email or Employee ID" />
+    <input type="password" id="password" placeholder="Password" />
+
+    <div class="buttons">
+      <button class="btn login">Login</button>
+    </div>
+
+    <p class="forgot-password">
+      <a href="#" id="forgotPasswordLink">Forgot Password?</a>
+    </p>
+
+    <div class="footer">
+      <small>Version 2.0 | © ShiftTrackr</small>
+    </div>
+  </div>
+
+  <!-- Reset Password Box -->
+  <div class="reset-password-box" id="resetPasswordBox">
+    <h2>🔁 Reset Password</h2>
+    <p>Enter your email to receive a reset link</p>
+    <input type="email" id="resetEmail" placeholder="Your Email" />
+    <div class="buttons">
+      <button class="btn reset-password">Send Link</button>
+      <button class="btn cancel" id="cancelReset">Cancel</button>
+    </div>
+    <p class="message" id="message"></p>
+  </div>
+
+  <script>
+    document.addEventListener("DOMContentLoaded", function () {
+      const SUPABASE_URL = 'https://nqbrepbtcacdvatfcqrz.supabase.co/'; // Replace with your Supabase URL
+      const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5xYnJlcGJ0Y2FjZHZhdGZjcXJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDU5MjgyOTIsImV4cCI6MjA2MTUwNDI5Mn0.2-IdK9Jh3Can-KT2rVUm8SMUt-7BL9OL58unLBtM9AM'; // Replace with your Supabase Key
+      const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+      // Show reset password form
+      document.getElementById("forgotPasswordLink").addEventListener("click", () => {
+        document.getElementById("loginBox").style.display = "none";
+        document.getElementById("resetPasswordBox").style.display = "block";
+      });
+
+      // Cancel and return to login
+      document.getElementById("cancelReset").addEventListener("click", () => {
+        document.getElementById("resetPasswordBox").style.display = "none";
+        document.getElementById("loginBox").style.display = "block";
+      });
+
+      // Send reset link
+      document.querySelector(".reset-password").addEventListener("click", async () => {
+        const email = document.getElementById("resetEmail").value.trim().toLowerCase();
+        if (!email) {
+          alert("⚠️ Please enter your email.");
+          return;
+        }
+
+        // Check if email is registered in Supabase Auth
+        const { data, error } = await supabase.auth.api.getUserByEmail(email);
+
+        if (error || !data) {
+          alert("❌ This email is not registered.");
+          return;
+        }
+
+        // If email exists, send reset password link
+        const { error: resetError } = await supabase.auth.api.resetPasswordForEmail(email);
+
+        if (resetError) {
+          alert("❌ Failed to send reset link. Please try again.");
+        } else {
+          // Display success message
+          document.getElementById("message").textContent = "✅ A request has been sent to the Admin. Please check your inbox.";
+          setTimeout(() => {
+            // Redirect to login screen after 3 seconds
+            document.getElementById("resetPasswordBox").style.display = "none";
+            document.getElementById("loginBox").style.display = "block";
+          }, 3000);
+        }
+      });
+
+      // Login button functionality
+      document.querySelector(".btn.login").addEventListener("click", async () => {
+        const loginType = document.getElementById("loginType").value;
+        const userInput = document.getElementById("username").value.trim().toLowerCase();
+        const passwordInput = document.getElementById("password").value;
+
+        if (!userInput || !passwordInput) {
+          alert("⚠️ Please enter both Email/ID and Password.");
+          return;
+        }
+
+        const { data: users, error } = await supabase.from('users').select('*');
+
+        if (error) {
+          alert("❌ Error fetching users");
+          return;
+        }
+
+        let matchedUser = null;
+
+        users.forEach(user => {
+          const isEmail = user.email?.toLowerCase() === userInput;
+          const isID = user.emp_id?.toLowerCase() === userInput;
+          const roleMatch = user.type?.toLowerCase() === loginType;
+
+          if ((isEmail || isID) && roleMatch && user.password === passwordInput) {
+            matchedUser = user;
+          }
+        });
+
+     if (matchedUser) {
+  alert(`✅ Welcome, ${matchedUser.name}`);
+  const empId = matchedUser.emp_id;
+
+  if (loginType === "user") {
+    window.location.href = `userh.html?emp_id=${empId}`;
+  } else if (loginType === "admin") {
+    window.location.href = `admin.html?emp_id=${empId}`;
+  } else if (loginType === "developer") {
+    window.location.href = `developer-dashboard.html?emp_id=${empId}`;
+  }
+}
+
+
+      });
+    });
+  </script>
+</body>
+</html>

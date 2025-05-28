@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Exchange duty Request</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    header {
+        position: fixed;
+        top: 0;
+        width: 100%;
+        z-index: 50;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+    
+    main {
+        margin-top: 70px;
+        max-width: 800px;
+        margin-left: auto;
+        margin-right: auto;
+    }
+
+    .form-row {
+        transition: all 0.3s ease;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+        border: 1px solid #e2e8f0;
+    }
+
+    .form-row:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    }
+
+    input, textarea {
+        transition: all 0.3s ease;
+        border: 2px solid #cbd5e0;
+    }
+
+    input:focus, textarea:focus {
+        border-color: #4299e1;
+        box-shadow: 0 0 0 3px rgba(66,153,225,0.2);
+        outline: none;
+    }
+
+    .shiftDisplay {
+        padding: 8px 12px;
+        background: #f7fafc;
+        border-radius: 6px;
+        margin: 10px 0;
+    }
+
+    .shiftDisplay span {
+        font-weight: 600;
+        color: #2d3748;
+    }
+
+    button {
+        transition: all 0.2s ease;
+        letter-spacing: 0.5px;
+        font-weight: 600;
+    }
+
+    button:hover {
+        transform: translateY(-1px);
+    }
+
+    /* Modern scrollbar styling */
+    ::-webkit-scrollbar {
+        width: 8px;
+    }
+
+    ::-webkit-scrollbar-track {
+        background: #f1f5f9;
+    }
+
+    ::-webkit-scrollbar-thumb {
+        background: #cbd5e0;
+        border-radius: 4px;
+    }
+
+    /* Loading state */
+    .loading {
+        position: relative;
+        opacity: 0.7;
+        pointer-events: none;
+    }
+
+    .loading:after {
+        content: "";
+        position: absolute;
+        right: 10px;
+        top: 50%;
+        width: 20px;
+        height: 20px;
+        border: 2px solid #fff;
+        border-radius: 50%;
+        border-top-color: transparent;
+        animation: spin 0.8s linear infinite;
+    }
+
+    @keyframes spin {
+        to { transform: rotate(360deg); }
+    }
+
+    /* Error states */
+    .error-input {
+        border-color: #fc8181 !important;
+        background: #fff5f5;
+    }
+
+    .error-message {
+        color: #e53e3e;
+        font-size: 0.875rem;
+        margin-top: 4px;
+        display: none;
+    }
+
+    /* Responsive adjustments */
+    @media (max-width: 640px) {
+        main {
+            padding: 1rem;
+            margin-top: 60px;
+        }
+        
+        .form-row {
+            padding: 1rem;
+        }
+        
+        header {
+            padding: 12px;
+        }
+        
+        button {
+            width: 100%;
+            margin-bottom: 8px;
+        }
+    }
+</style>
+</head>
+<body class="bg-gray-100 text-gray-800">
+
+  <!-- Top Bar -->
+  <header class="bg-blue-600 text-white px-4 py-3 flex items-center justify-between">
+    <span onclick="window.history.back()" class="cursor-pointer text-xl">←</span>
+    <h1 class="text-lg font-semibold">Exchange duty Request</h1>
+    <span id="empLabel" class="text-sm font-bold"></span>
+  </header>
+
+  <!-- Form Section -->
+  <main class="p-4" id="formContainer">
+    <!-- Form Row Template -->
+    <div class="form-row mb-4 border border-gray-300 p-4 rounded-md bg-white">
+      <label class="block mb-1">Date:</label>
+      <input type="date" class="dateInput w-full border p-2 rounded mb-2" onchange="loadShift(this)" />
+
+      <p class="shiftDisplay text-sm text-gray-600 mb-2">Shift: <span>--</span></p>
+
+      <label class="block mb-1">Employee ID for Exchange Duty:</label>
+      <input type="text" class="targetEmpId w-full border p-2 rounded mb-2" placeholder="Enter Employee ID for Exchange Duty" />
+
+      <label>Reason:</label>
+      <textarea class="reason w-full border p-2 rounded"></textarea>
+    </div>
+  </main>
+
+  <!-- Buttons -->
+  <div class="flex justify-between p-4">
+    
+    <button onclick="submitOvertime()" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded">✅ Submit</button>
+  </div>
+
+  <script>
+    const empId = new URLSearchParams(window.location.search).get("emp_id") || "EMP001";
+    document.getElementById("empLabel").textContent = empId;
+
+    const { createClient } = supabase;
+    const supabaseClient = createClient(
+      'https://nqbrepbtcacdvatfcqrz.supabase.co',
+      'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5xYnJlcGJ0Y2FjZHZhdGZjcXJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDU5MjgyOTIsImV4cCI6MjA2MTUwNDI5Mn0.2-IdK9Jh3Can-KT2rVUm8SMUt-7BL9OL58unLBtM9AM'
+    );
+
+    async function loadShift(dateInput) {
+      const row = dateInput.closest(".form-row");
+      const shiftSpan = row.querySelector(".shiftDisplay span");
+      const date = dateInput.value;
+
+      const { data, error } = await supabaseClient
+        .from("shifts")
+        .select("shift_name")
+        .eq("emp_id", empId)
+        .eq("shift_date", date)
+        .single();
+
+      if (error) {
+        console.error("Shift fetch error:", error.message);
+        shiftSpan.textContent = "Not Assigned";
+      } else {
+        shiftSpan.textContent = data?.shift_name || "Not Assigned";
+      }
+    }
+
+    function addMore() {
+      const container = document.getElementById("formContainer");
+      const original = container.querySelector(".form-row");
+      const clone = original.cloneNode(true);
+
+      clone.querySelector(".dateInput").value = "";
+      clone.querySelector(".shiftDisplay span").textContent = "--";
+      clone.querySelector(".targetEmpId").value = "";
+      clone.querySelector(".reason").value = "";
+
+      clone.querySelector(".dateInput").onchange = function () { loadShift(this); };
+
+      container.appendChild(clone);
+    }
+
+    async function submitOvertime() {
+      const rows = document.querySelectorAll(".form-row");
+      const entries = [];
+
+      rows.forEach(row => {
+        const date = row.querySelector(".dateInput").value;
+        const shift = row.querySelector(".shiftDisplay span").textContent;
+        const targetEmpId = row.querySelector(".targetEmpId").value.trim();
+        const reason = row.querySelector(".reason").value;
+
+        if (date && targetEmpId && reason) {
+          entries.push({
+            exchange_emp_id: empId,
+            exchange_date: date,
+            exchange_shift_name: shift,
+            accept_emp_id: targetEmpId,
+            reason: reason,
+            status: "pending"
+            
+          });
+        }
+      });
+
+      if (entries.length === 0) {
+        alert("⚠️ Please fill at least one duty time entry.");
+        return;
+      }
+
+      const { error } = await supabaseClient.from("exchange_duty").insert(entries);
+      if (error) {
+        console.error("Error submitting exchane duty:", error.message);
+        alert("❌ Submission error: " + error.message);
+      } else {
+        alert("✅ Exchange Duty request submitted!");
+        location.reload();
+      }
+    }
+  </script>
+</body>
+</html>
