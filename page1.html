@@ -290,34 +290,41 @@
         }, 500);
       }
     }
-    async function verifyDevice() {
-      let deviceId = localStorage.getItem('deviceId');
-      if (!deviceId) {
-        deviceId = crypto.randomUUID();
-        localStorage.setItem('deviceId', deviceId);
-      }
+    function getISTDateISOString() {
+  // Current time in IST timezone as ISO string
+  const istTime = new Date().toLocaleString("en-US", { timeZone: "Asia/Kolkata" });
+  return new Date(istTime).toISOString();
+}
 
-      try {
-        const { error } = await supabaseClient
-          .from('device_requests')
-          .upsert({
-            emp_id: empId,
-            device_id: deviceId,
-            status: 'pending',
-            created_at: new Date().toISOString()
-          });
+async function verifyDevice() {
+  let deviceId = localStorage.getItem('deviceId');
+  if (!deviceId) {
+    deviceId = crypto.randomUUID();
+    localStorage.setItem('deviceId', deviceId);
+  }
 
-        if (error) throw error;
+  try {
+    const { error } = await supabaseClient
+      .from('device_requests')
+      .upsert({
+        emp_id: empId,
+        device_id: deviceId,
+        status: 'pending',
+        created_at: getISTDateISOString()
+      });
 
-        // Update button state without reload
-        const deviceBtn = document.getElementById('deviceVerifyBtn');
-        deviceBtn.textContent = '📱 Approval Pending';
-        deviceBtn.disabled = true;
-      } catch (error) {
-        console.error('Device verification error:', error);
-        showError('Failed to request device verification');
-      }
-    }
+    if (error) throw error;
+
+    // Update UI
+    const deviceBtn = document.getElementById('deviceVerifyBtn');
+    deviceBtn.textContent = '⏳ Approval Pending';
+    deviceBtn.disabled = true;
+    deviceVerificationPending = true;
+  } catch (error) {
+    console.error('Device verification error:', error);
+    showError('Verification request failed');
+  }
+}
     // Modified Button State Function
      function updateButtonStatesBasedOnLocation() {
         // Disable all if device not approved
@@ -596,138 +603,167 @@
     }
 
     // Handle punch in with improved status determination
-    async function handlePunchIn() {
-      if (!userLocation || !companyLocation) {
-        showError("Location data not available");
-        return;
-      }
+    // Format IST datetime string like "2025-05-29 09:15:00"
+function getISTDateTime() {
+  return new Date().toLocaleString('sv-SE', { timeZone: 'Asia/Kolkata' });
+}
 
-      const distance = calculateDistance(
-        companyLocation.lat, companyLocation.lng,
-        userLocation.lat, userLocation.lng
-      );
+// Parse "HH:MM" string to Date object (in IST)
+function parseTimeString(timeStr) {
+  if (!timeStr) return new Date();
+  const [hours, minutes] = timeStr.split(':').map(Number);
+  const date = new Date();
+  date.setHours(hours, minutes || 0, 0, 0);
+  return date;
+}
 
-      if (distance > companyLocation.radius) {
-        showError(`You are ${Math.round(distance)}m from office (max ${companyLocation.radius}m)`);
-        return;
-      }
+// Add minutes to a date
+function addMinutes(date, minutes) {
+  return new Date(date.getTime() + minutes * 60000);
+}
 
+// Punch In Function
+async function handlePunchIn() {
+  if (!userLocation || !companyLocation) {
+    showError("Location data not available");
+    return;
+  }
+
+  const distance = calculateDistance(
+    companyLocation.lat, companyLocation.lng,
+    userLocation.lat, userLocation.lng
+  );
+
+  if (distance > companyLocation.radius) {
+    showError(`You are ${Math.round(distance)}m from office (max ${companyLocation.radius}m)`);
+    return;
+  }
+
+  try {
+    const now = new Date();
+    const punchInIST = getISTDateTime(); // "2025-05-29 09:15:00"
+    
+    // Determine status
+    let status = "PRESENT";
+    if (shiftDetails?.time) {
       try {
-        const now = new Date();
-        punchInTime = now;
-        
-        // Determine status
-        let status = "PRESENT";
-        if (shiftDetails?.time) {
-          try {
-            const [startTimeStr] = shiftDetails.time.split('-');
-            const startTime = parseTimeString(startTimeStr);
-            const lateThreshold = addMinutes(startTime, 15);
-            
-            if (now > lateThreshold) {
-              status = "LATE";
-            }
-          } catch (e) {
-            console.warn("Failed to check late status:", e);
-          }
+        const [startTimeStr] = shiftDetails.time.split('-');
+        const startTime = parseTimeString(startTimeStr);
+        const lateThreshold = addMinutes(startTime, 15);
+
+        if (now > lateThreshold) {
+          status = "LATE";
         }
-
-        const { data, error } = await supabaseClient
-          .from('attendance')
-          .upsert({
-            emp_id: empId,
-            date: now.toISOString().split('T')[0],
-            punch_in: now.toISOString(),
-            status: status,
-            location_lat: userLocation.lat,
-            location_lng: userLocation.lng,
-            accuracy: userLocation.accuracy
-          }, {
-            onConflict: 'emp_id,date'
-          });
-
-        if (error) throw error;
-
-        showMessage("Punched in successfully!");
-        document.getElementById("punchInBtn").disabled = true;
-        document.getElementById("punchOutBtn").disabled = false;
-      } catch (error) {
-        console.error("Punch in error:", error);
-        showError("Failed to record punch in: " + error.message);
+      } catch (e) {
+        console.warn("Failed to check late status:", e);
       }
     }
+
+    const { data, error } = await supabaseClient
+      .from('attendance')
+      .upsert({
+        emp_id: empId,
+        date: punchInIST.split(' ')[0],         // "2025-05-29"
+        punch_in: punchInIST,                   // "2025-05-29 09:15:00"
+        status: status,
+        location_lat: userLocation.lat,
+        location_lng: userLocation.lng,
+        accuracy: userLocation.accuracy
+      }, {
+        onConflict: 'emp_id,date'
+      });
+
+    if (error) throw error;
+
+    showMessage("Punched in successfully!");
+    document.getElementById("punchInBtn").disabled = true;
+    document.getElementById("punchOutBtn").disabled = false;
+  } catch (error) {
+    console.error("Punch in error:", error);
+    showError("Failed to record punch in: " + error.message);
+  }
+}
 
     // Handle punch out with improved status determination
-    async function handlePunchOut() {
-      if (!userLocation || !companyLocation) {
-        showError("Location data not available");
-        return;
-      }
+   // Get IST date-time string like "2025-05-29 18:45:00"
+function getISTDateTime() {
+  return new Date().toLocaleString('sv-SE', { timeZone: 'Asia/Kolkata' });
+}
 
-      const distance = calculateDistance(
-        companyLocation.lat, companyLocation.lng,
-        userLocation.lat, userLocation.lng
-      );
+// Punch Out Function
+async function handlePunchOut() {
+  if (!userLocation || !companyLocation) {
+    showError("Location data not available");
+    return;
+  }
 
-      if (distance > companyLocation.radius) {
-        showError(`You are ${Math.round(distance)}m from office (max ${companyLocation.radius}m)`);
-        return;
-      }
+  const distance = calculateDistance(
+    companyLocation.lat, companyLocation.lng,
+    userLocation.lat, userLocation.lng
+  );
 
+  if (distance > companyLocation.radius) {
+    showError(`You are ${Math.round(distance)}m from office (max ${companyLocation.radius}m)`);
+    return;
+  }
+
+  try {
+    const now = new Date();
+    const punchOutIST = getISTDateTime(); // e.g. "2025-05-29 18:45:00"
+    const today = punchOutIST.split(' ')[0]; // e.g. "2025-05-29"
+
+    // Get existing punch in record
+    const { data: existing, error: fetchError } = await supabaseClient
+      .from('attendance')
+      .select('punch_in, status')
+      .eq('emp_id', empId)
+      .eq('date', today)
+      .single();
+
+    if (fetchError || !existing) {
+      throw new Error("No punch in found for today");
+    }
+
+    let status = existing.status;
+
+    // Check for early punch out
+    if (shiftDetails?.time) {
       try {
-        const now = new Date();
-        const today = now.toISOString().split('T')[0];
-        
-        // Get existing record
-        const { data: existing, error: fetchError } = await supabaseClient
-          .from('attendance')
-          .select('punch_in, status')
-          .eq('emp_id', empId)
-          .eq('date', today)
-          .single();
+        const [_, endTimeStr] = shiftDetails.time.split('-');
+        const endTime = parseTimeString(endTimeStr);
 
-        if (fetchError || !existing) {
-          throw new Error("No punch in found for today");
+        if (now < endTime) {
+          status = "LEFT_EARLY";
         }
-
-        let status = existing.status;
-        
-        // Check for early punch out
-        if (shiftDetails?.time) {
-          try {
-            const [_, endTimeStr] = shiftDetails.time.split('-');
-            const endTime = parseTimeString(endTimeStr);
-            
-            if (now < endTime) {
-              status = "LEFT_EARLY";
-            }
-          } catch (e) {
-            console.warn("Failed to check early departure:", e);
-          }
-        }
-
-        const { data, error } = await supabaseClient
-          .from('attendance')
-          .update({
-            punch_out: now.toISOString(),
-            status: status,
-            location_lat_out: userLocation.lat,
-            location_lng_out: userLocation.lng,
-            accuracy_out: userLocation.accuracy
-          })
-          .eq('emp_id', empId)
-          .eq('date', today);
-
-        if (error) throw error;
-
-        showMessage("Punched out successfully!");
-        hasCompletedAttendance = true;
-        disablePunchButtons();
-      } catch (error) {
-        console.error("Punch out error:", error);
-        showError("Failed to record punch out: " + error.message);
+      } catch (e) {
+        console.warn("Failed to check early departure:", e);
       }
     }
+
+    // Update punch out
+    const { data, error } = await supabaseClient
+      .from('attendance')
+      .update({
+        punch_out: punchOutIST, // Correct IST format
+        status: status,
+        location_lat_out: userLocation.lat,
+        location_lng_out: userLocation.lng,
+        accuracy_out: userLocation.accuracy
+      })
+      .eq('emp_id', empId)
+      .eq('date', today);
+
+    if (error) throw error;
+
+    showMessage("Punched out successfully!");
+    hasCompletedAttendance = true;
+    disablePunchButtons();
+  } catch (error) {
+    console.error("Punch out error:", error);
+    showError("Failed to record punch out: " + error.message);
+  }
+}
+
 
     // Location tracking functions
     function startLocationTracking() {
