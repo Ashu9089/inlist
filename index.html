@@ -190,7 +190,7 @@
 
   <script>
     document.addEventListener("DOMContentLoaded", function () {
-      const SUPABASE_URL = 'https://lwbxqbvccmpalifbxoai.supabase.co/'; // Replace with your Supabase URL
+      const SUPABASE_URL = 'https://lwbxqbvccmpalifbxoai.supabase.co'; // Replace with your Supabase URL
       const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imx3YnhxYnZjY21wYWxpZmJ4b2FpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzMwMDQ3NTQsImV4cCI6MjA4ODU4MDc1NH0.bGj0vxHmXkWRcrUKKT9xo_jceebJmvmeaVRPwRNSfyk'; // Replace with your Supabase Key
       const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
@@ -215,16 +215,30 @@
         }
 
         // Check if email is registered in Supabase Auth
-        const { data, error } = await supabase.auth.api.getUserByEmail(email);
+        document.querySelector(".reset-password").addEventListener("click", async () => {
 
-        if (error || !data) {
-          alert("❌ This email is not registered.");
-          return;
-        }
+  const email = document.getElementById("resetEmail").value.trim().toLowerCase();
 
-        // If email exists, send reset password link
-        const { error: resetError } = await supabase.auth.api.resetPasswordForEmail(email);
+  if (!email) {
+    alert("⚠️ Please enter your email.");
+    return;
+  }
 
+  const { error } = await supabase.auth.resetPasswordForEmail(email);
+
+  if (error) {
+    alert("❌ Failed to send reset link. Please try again.");
+  } else {
+    document.getElementById("message").textContent =
+      "✅ Reset link sent to your email.";
+
+    setTimeout(() => {
+      document.getElementById("resetPasswordBox").style.display = "none";
+      document.getElementById("loginBox").style.display = "block";
+    }, 3000);
+  }
+
+});
         if (resetError) {
           alert("❌ Failed to send reset link. Please try again.");
         } else {
@@ -273,8 +287,7 @@
   const empId = matchedUser.emp_id;
 
   if (loginType === "user") {
-    window.location.href = `page1.html
-?emp_id=${empId}`;
+    window.location.href = `page1.html?emp_id=${empId}`;
   } else if (loginType === "admin") {
     window.location.href = `page2.html?emp_id=${empId}`;
   } else if (loginType === "developer") {
